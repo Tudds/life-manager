@@ -360,10 +360,10 @@
 
             <!-- Bottom Actions -->
             <div class="flex flex-col gap-2">
-                <button
+                <button onclick="NotificationManager.requestPermission()"
                     class="flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-secondary-dark transition-colors text-left w-full">
-                    <span class="material-symbols-outlined text-[#92c9a4]">settings</span>
-                    <p class="text-[#92c9a4] text-sm font-medium">Cài đặt</p>
+                    <span class="material-symbols-outlined text-[#92c9a4]">notifications</span>
+                    <p class="text-[#92c9a4] text-sm font-medium">Bật thông báo</p>
                 </button>
                 <button onclick="handleSignOut()"
                     class="flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-secondary-dark transition-colors text-left w-full">
@@ -430,6 +430,20 @@
                         <div class="rounded-xl bg-surface-dark border border-secondary-dark p-6">
                             <h3 class="text-white text-lg font-bold mb-4">Phân bổ chi tiêu</h3>
                             <canvas id="expensePieChart" class="w-full" style="max-height: 300px;"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Budget Section -->
+                    <div class="flex flex-col gap-4">
+                        <div class="flex justify-between items-end px-1">
+                            <h2 class="text-white text-xl font-bold leading-tight">Ngân sách chi tiêu</h2>
+                            <p class="text-[#92c9a4] text-sm">Theo dõi chi tiêu trong tháng</p>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" id="budgetList">
+                            <div
+                                class="col-span-full text-center text-[#92c9a4] py-8 border border-secondary-dark rounded-xl bg-surface-dark">
+                                Đang tải dữ liệu ngân sách...
+                            </div>
                         </div>
                     </div>
 
@@ -563,7 +577,38 @@
             <div id="analyticsView" class="view-section">
                 <div class="max-w-[1200px] mx-auto w-full p-6 md:p-8 lg:p-10 flex flex-col gap-8">
                     <h2 class="text-white text-3xl md:text-4xl font-black">Báo cáo tổng hợp</h2>
-                    <p class="text-[#92c9a4] text-base">Chức năng đang được phát triển...</p>
+
+                    <!-- KPI Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6" id="analyticsKPI">
+                        <div class="bg-surface-dark p-6 rounded-xl border border-secondary-dark flex flex-col gap-2">
+                            <span class="text-[#92c9a4] text-sm font-bold uppercase">Tổng chi tiêu (Tháng này)</span>
+                            <span class="text-white text-3xl font-black" id="analyticsTotalExpense">0 đ</span>
+                        </div>
+                        <div class="bg-surface-dark p-6 rounded-xl border border-secondary-dark flex flex-col gap-2">
+                            <span class="text-[#92c9a4] text-sm font-bold uppercase">Tiết kiệm</span>
+                            <span class="text-white text-3xl font-black" id="analyticsSavings">0 đ</span>
+                        </div>
+                        <div class="bg-surface-dark p-6 rounded-xl border border-secondary-dark flex flex-col gap-2">
+                            <span class="text-[#92c9a4] text-sm font-bold uppercase">Hoàn thành thói quen</span>
+                            <span class="text-white text-3xl font-black" id="analyticsHabitRate">0%</span>
+                        </div>
+                    </div>
+
+                    <!-- Charts -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="bg-surface-dark p-6 rounded-xl border border-secondary-dark">
+                            <h3 class="text-white font-bold mb-4">Xu hướng chi tiêu (6 tháng)</h3>
+                            <div class="relative h-[300px] w-full">
+                                <canvas id="analyticsTrendChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="bg-surface-dark p-6 rounded-xl border border-secondary-dark">
+                            <h3 class="text-white font-bold mb-4">Thống kê thói quen (7 ngày)</h3>
+                            <div class="relative h-[300px] w-full">
+                                <canvas id="analyticsHabitChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -926,10 +971,15 @@
         // Chart objects
         let incomeExpenseChartObj = null;
         let expensePieChartObj = null;
+        let analyticsTrendChartObj = null;
+        let analyticsHabitChartObj = null;
 
         // Filtered data
         let filteredTransactions = [];
         let allTransactions = [];
+        let allBudgets = [];
+        let allGoals = [];
+        let allHabits = [];
         let currentGoal = null;
         let currentHabit = null;
         let habitLogs = [];
@@ -1003,21 +1053,40 @@
         }
 
         // Google Sheets Operations
+
         async function readSheet(range) {
             try {
+                if (!gapi.client) throw new Error('GAPI not loaded');
+
                 const response = await gapi.client.sheets.spreadsheets.values.get({
                     spreadsheetId: CONFIG.SPREADSHEET_ID,
                     range: range,
                 });
-                return response.result.values || [];
+
+                const values = response.result.values || [];
+                // Save to cache on success
+                OfflineManager.saveToCache(range, values);
+                return values;
             } catch (err) {
-                console.error('Error reading sheet:', err);
+                console.warn('Error reading sheet, trying cache:', err);
+                // Fallback to cache
+                const cached = OfflineManager.getFromCache(range);
+                if (cached) {
+                    console.log('Loaded from cache:', range);
+                    return cached;
+                }
                 return [];
             }
         }
 
-        async function writeSheet(range, values) {
+        async function writeSheet(range, values, skipQueue = false) {
             try {
+                if (!skipQueue) {
+                    // Update cache optimistically if whole sheet is not reloaded
+                    // (Complex to update specific range in cache, so we skip cache update here 
+                    // and rely on optimistic UI updates in the app logic)
+                }
+
                 await gapi.client.sheets.spreadsheets.values.update({
                     spreadsheetId: CONFIG.SPREADSHEET_ID,
                     range: range,
@@ -1029,11 +1098,16 @@
                 return true;
             } catch (err) {
                 console.error('Error writing sheet:', err);
+                if (!skipQueue) {
+                    console.log('Queuing write action...');
+                    OfflineManager.addToQueue({ type: 'write', range, values });
+                    return true; // Return true to allow optimistic UI update
+                }
                 return false;
             }
         }
 
-        async function appendSheet(range, values) {
+        async function appendSheet(range, values, skipQueue = false) {
             try {
                 await gapi.client.sheets.spreadsheets.values.append({
                     spreadsheetId: CONFIG.SPREADSHEET_ID,
@@ -1046,6 +1120,11 @@
                 return true;
             } catch (err) {
                 console.error('Error appending to sheet:', err);
+                if (!skipQueue) {
+                    console.log('Queuing append action...');
+                    OfflineManager.addToQueue({ type: 'append', range, values });
+                    return true; // Return true for optimistic UI
+                }
                 return false;
             }
         }
@@ -1056,9 +1135,21 @@
             await Promise.all([
                 loadFinanceData(),
                 loadGoalsData(),
-                loadHabitsData()
+                loadHabitsData(),
+                loadBudgetsData()
             ]);
+            renderBudgets(); // Render budgets after all data is loaded
+            renderAnalytics();
             showLoading(false);
+
+            // Notification Check
+            setTimeout(() => {
+                NotificationManager.checkReminders();
+            }, 2000);
+        }
+
+        async function loadBudgetsData() {
+            allBudgets = await readSheet('Budgets!A2:C');
         }
 
         async function loadFinanceData() {
@@ -1081,16 +1172,17 @@
         }
 
         async function loadGoalsData() {
-            const goals = await readSheet('Goals!A2:H');
-            renderGoalsStats(goals);
-            renderGoalsList(goals);
+            allGoals = await readSheet('Goals!A2:H');
+            renderGoalsStats(allGoals);
+            renderGoalsList(allGoals);
         }
 
         async function loadHabitsData() {
-            const habits = await readSheet('Habits!A2:H');
+            allHabits = await readSheet('Habits!A2:H');
             const logs = await readSheet('HabitLogs!A2:D');
-            renderHabitsStats(habits, logs);
-            renderHabitsList(habits);
+            habitLogs = logs; // Also update global habitLogs
+            renderHabitsStats(allHabits, logs);
+            renderHabitsList(allHabits);
         }
 
         // Rendering Functions
@@ -1188,6 +1280,75 @@
             document.getElementById('recentTransactionsTable').innerHTML = tableHtml;
         }
 
+        function renderBudgets() {
+            const budgetContainer = document.getElementById('budgetList');
+            if (!allBudgets || allBudgets.length === 0) {
+                budgetContainer.innerHTML = `
+                    <div class="col-span-full text-center text-[#92c9a4] py-8 border border-white/5 rounded-xl bg-surface-dark">
+                        Chưa có gói ngân sách nào. Hãy tạo sheet "Budgets" và thêm dữ liệu.
+                    </div>`;
+                return;
+            }
+
+            // Calculate spending by category
+            const spendingByCategory = {};
+            filteredTransactions.forEach(t => {
+                if (t[4] === 'Expense') {
+                    const cat = t[2];
+                    const amount = parseInt(t[5]) || 0;
+                    spendingByCategory[cat] = (spendingByCategory[cat] || 0) + amount;
+                }
+            });
+
+            const html = allBudgets.map(b => {
+                const category = b[0];
+                const limit = parseInt(b[1]) || 0;
+                const period = b[2] || 'Month';
+                const spent = spendingByCategory[category] || 0;
+                const percent = limit > 0 ? Math.min(Math.round((spent / limit) * 100), 100) : 0;
+
+                let colorClass = 'bg-primary';
+                let textClass = 'text-primary';
+                let statusText = 'An toàn';
+
+                if (spent > limit) {
+                    colorClass = 'bg-red-500';
+                    textClass = 'text-red-500';
+                    statusText = 'Vượt mức';
+                } else if (spent > limit * 0.8) {
+                    colorClass = 'bg-yellow-500';
+                    textClass = 'text-yellow-500';
+                    statusText = 'Cảnh báo';
+                }
+
+                return `
+                <div class="bg-surface-dark rounded-xl p-5 border border-secondary-dark shadow-sm">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h4 class="text-white font-bold text-base">${category}</h4>
+                            <p class="text-[#92c9a4] text-xs">${period}</p>
+                        </div>
+                        <span class="${textClass} bg-white/5 px-2 py-1 rounded text-xs font-bold">${statusText}</span>
+                    </div>
+                    
+                    <div class="flex justify-between text-sm mb-2">
+                        <span class="text-white font-medium">${formatCurrency(spent)}</span>
+                        <span class="text-gray-400">/ ${formatCurrency(limit)}</span>
+                    </div>
+
+                    <div class="h-2 w-full bg-gray-700/50 rounded-full overflow-hidden">
+                        <div class="h-full ${colorClass} transition-all duration-500" style="width: ${percent}%"></div>
+                    </div>
+                    
+                    <div class="mt-2 text-right">
+                         <span class="text-xs text-[#92c9a4]">${percent}%</span>
+                    </div>
+                </div>
+                `;
+            }).join('');
+
+            budgetContainer.innerHTML = html;
+        }
         function renderGoalsStats(goals) {
             const activeGoals = goals.filter(g => g[5] === 'Active').length;
             const avgProgress = goals.reduce((sum, g) => sum + (parseInt(g[3]) || 0), 0) / (goals.length || 1);
@@ -1540,6 +1701,138 @@
             document.body.removeChild(link);
         }
 
+        function renderAnalytics() {
+            // 1. Calculate KPIs (This Month)
+            const now = new Date();
+            const currentMonth = now.getMonth();
+            const currentYear = now.getFullYear();
+
+            let totalIncome = 0;
+            let totalExpense = 0;
+
+            allTransactions.forEach(t => {
+                const d = new Date(t[1]);
+                if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
+                    const amount = parseInt(t[5]) || 0;
+                    if (t[4] === 'Income') totalIncome += amount;
+                    else totalExpense += amount;
+                }
+            });
+
+            document.getElementById('analyticsTotalExpense').textContent = formatCurrency(totalExpense);
+            document.getElementById('analyticsSavings').textContent = formatCurrency(totalIncome - totalExpense);
+
+            // Habit Rate (Today)
+            let totalHabitRate = 0;
+            if (allHabits.length > 0) {
+                const todayStr = now.toISOString().split('T')[0];
+                const doneToday = habitLogs.filter(l => l[2] === todayStr && l[3] === 'TRUE').length;
+                totalHabitRate = Math.round((doneToday / allHabits.length) * 100);
+            }
+            document.getElementById('analyticsHabitRate').textContent = totalHabitRate + "%";
+
+            // 2. Trend Chart (Last 6 Months)
+            const months = [];
+            const expenseData = [];
+            for (let i = 5; i >= 0; i--) {
+                const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                const monthLabel = d.toLocaleDateString('vi-VN', { month: '2-digit' });
+                months.push(monthLabel);
+
+                let sum = 0;
+                allTransactions.forEach(t => {
+                    const td = new Date(t[1]);
+                    if (td.getMonth() === d.getMonth() && td.getFullYear() === d.getFullYear() && t[4] === 'Expense') {
+                        sum += parseInt(t[5]) || 0;
+                    }
+                });
+                expenseData.push(sum);
+            }
+
+            const trendCtx = document.getElementById('analyticsTrendChart')?.getContext('2d');
+            if (trendCtx) {
+                if (analyticsTrendChartObj) analyticsTrendChartObj.destroy();
+                analyticsTrendChartObj = new Chart(trendCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: months,
+                        datasets: [{
+                            label: 'Chi tiêu',
+                            data: expenseData,
+                            backgroundColor: '#13ec5b',
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: { color: 'rgba(255,255,255,0.1)' },
+                                ticks: { color: '#92c9a4' }
+                            },
+                            x: {
+                                grid: { display: false },
+                                ticks: { color: '#92c9a4' }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // 3. Habit Chart (Last 7 Days)
+            const days = [];
+            const completionData = [];
+            for (let i = 6; i >= 0; i--) {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+                const dayLabel = d.toLocaleDateString('vi-VN', { weekday: 'short' });
+                days.push(dayLabel);
+
+                const dStr = d.toISOString().split('T')[0];
+                const count = habitLogs.filter(l => l[2] === dStr && l[3] === 'TRUE').length;
+                completionData.push(count);
+            }
+
+            const habitCtx = document.getElementById('analyticsHabitChart')?.getContext('2d');
+            if (habitCtx) {
+                if (analyticsHabitChartObj) analyticsHabitChartObj.destroy();
+                analyticsHabitChartObj = new Chart(habitCtx, {
+                    type: 'line',
+                    data: {
+                        labels: days,
+                        datasets: [{
+                            label: 'Số thói quen',
+                            data: completionData,
+                            borderColor: '#13ec5b',
+                            backgroundColor: 'rgba(19, 236, 91, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                suggestedMax: allHabits.length || 5,
+                                grid: { color: 'rgba(255,255,255,0.1)' },
+                                ticks: { color: '#92c9a4', stepSize: 1 }
+                            },
+                            x: {
+                                grid: { display: false },
+                                ticks: { color: '#92c9a4' }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
         // Utility Functions
         function formatCurrency(amount) {
             return new Intl.NumberFormat('vi-VN', {
@@ -1547,6 +1840,152 @@
                 currency: 'VND'
             }).format(amount || 0);
         }
+
+        // Offline & Sync Manager
+        const OfflineManager = {
+            CACHE_PREFIX: 'LM_Cache_',
+            QUEUE_KEY: 'LM_SyncQueue',
+
+            // Cache Management
+            saveToCache(key, data) {
+                try {
+                    localStorage.setItem(this.CACHE_PREFIX + key, JSON.stringify(data));
+                    localStorage.setItem(this.CACHE_PREFIX + key + '_Timestamp', Date.now());
+                } catch (e) {
+                    console.error('Cache save failed', e);
+                }
+            },
+
+            getFromCache(key) {
+                try {
+                    const data = localStorage.getItem(this.CACHE_PREFIX + key);
+                    return data ? JSON.parse(data) : null;
+                } catch (e) {
+                    return null;
+                }
+            },
+
+            // Sync Queue Management
+            addToQueue(action) {
+                // action: { type: 'write'|'append', range: string, values: any[], timestamp: number }
+                const queue = this.getQueue();
+                queue.push({ ...action, timestamp: Date.now(), id: Date.now() + Math.random() });
+                localStorage.setItem(this.QUEUE_KEY, JSON.stringify(queue));
+            },
+
+            getQueue() {
+                try {
+                    const q = localStorage.getItem(this.QUEUE_KEY);
+                    return q ? JSON.parse(q) : [];
+                } catch (e) {
+                    return [];
+                }
+            },
+
+            removeFromQueue(id) {
+                const queue = this.getQueue().filter(item => item.id !== id);
+                localStorage.setItem(this.QUEUE_KEY, JSON.stringify(queue));
+            },
+
+            async processQueue() {
+                if (!gapiInited || !tokenClient) return;
+
+                const queue = this.getQueue();
+                if (queue.length === 0) return;
+
+                console.log(`Processing ${queue.length} offline items...`);
+
+                for (const item of queue) {
+                    try {
+                        let success = false;
+                        if (item.type === 'write') { // Careful to avoid infinite recursion
+                            success = await gapi.client.sheets.spreadsheets.values.update({
+                                spreadsheetId: CONFIG.SPREADSHEET_ID,
+                                range: item.range,
+                                valueInputOption: 'USER_ENTERED',
+                                resource: { values: item.values }
+                            }).then(() => true).catch(() => false);
+                        } else if (item.type === 'append') {
+                            success = await gapi.client.sheets.spreadsheets.values.append({
+                                spreadsheetId: CONFIG.SPREADSHEET_ID,
+                                range: item.range,
+                                valueInputOption: 'USER_ENTERED',
+                                resource: { values: item.values }
+                            }).then(() => true).catch(() => false);
+                        }
+
+                        if (success) {
+                            this.removeFromQueue(item.id);
+                        }
+                    } catch (e) {
+                        console.error('Sync failed for item', item.id, e);
+                    }
+                }
+            }
+        };
+
+        // Network Status Listener
+        window.addEventListener('online', () => {
+            console.log('Online! Processing queue...');
+            OfflineManager.processQueue();
+        });
+
+        // Notification Manager
+        const NotificationManager = {
+            async requestPermission() {
+                if (!("Notification" in window)) {
+                    alert("Trình duyệt này không hỗ trợ thông báo!");
+                    return;
+                }
+                const permission = await Notification.requestPermission();
+                if (permission === 'granted') {
+                    new Notification("Thông báo đã được bật!", {
+                        body: "Life Manager sẽ nhắc bạn về các mục tiêu và thói quen.",
+                    });
+                }
+            },
+
+            checkReminders() {
+                if (Notification.permission !== 'granted') return;
+
+                const today = new Date();
+
+                // 1. Check Goals Deadlines
+                if (allGoals && allGoals.length > 0) {
+                    allGoals.forEach(g => {
+                        if (g[5] !== 'Active') return;
+                        const deadline = new Date(g[4]);
+                        const timeDiff = deadline.getTime() - today.getTime();
+                        const daysLeft = Math.ceil(timeDiff / (1000 * 3600 * 24));
+
+                        const notifKey = `LM_Notif_Goal_${g[0]}_${today.toDateString()}`;
+                        if (daysLeft <= 3 && daysLeft >= 0 && !localStorage.getItem(notifKey)) {
+                            new Notification(`Sắp đến hạn: ${g[1]}`, {
+                                body: `Chỉ còn ${daysLeft} ngày để hoàn thành mục tiêu này!`,
+                            });
+                            localStorage.setItem(notifKey, 'true');
+                        }
+                    });
+                }
+
+                // 2. Check Habits (Evening Reminder - after 8 PM)
+                const currentHour = today.getHours();
+                const habitNotifKey = `LM_Notif_Habit_${today.toDateString()}`;
+
+                if (currentHour >= 20 && !localStorage.getItem(habitNotifKey)) {
+                    const todayStr = today.toISOString().split('T')[0];
+                    const doneCount = habitLogs.filter(l => l[2] === todayStr && l[3] === 'TRUE').length;
+                    const total = allHabits.length;
+
+                    if (doneCount < total && total > 0) {
+                        new Notification("Nhắc nhở thói quen", {
+                            body: `Bạn mới hoàn thành ${doneCount}/${total} thói quen hôm nay. Tiếp tục nào!`,
+                        });
+                        localStorage.setItem(habitNotifKey, 'true');
+                    }
+                }
+            }
+        };
 
         function formatDate(dateString) {
             if (!dateString) return 'N/A';
