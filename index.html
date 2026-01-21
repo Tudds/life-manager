@@ -104,6 +104,18 @@
             color: #13ec5b;
             background-color: rgba(19, 236, 91, 0.1);
         }
+
+        .heatmap-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(32px, 1fr));
+            gap: 0.5rem;
+        }
+
+        @media (min-width: 768px) {
+            .heatmap-grid {
+                grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+            }
+        }
     </style>
 </head>
 
@@ -555,6 +567,313 @@
                 </div>
             </div>
 
+            <!-- Goal Detail View -->
+            <div id="goalDetailView" class="view-section">
+                <div class="max-w-[1200px] mx-auto w-full p-4 md:p-8 lg:p-10 flex flex-col gap-8">
+                    <!-- Breadcrumbs -->
+                    <nav class="flex items-center gap-2 text-sm">
+                        <a href="#goals" class="text-[#92c9a4] hover:text-primary transition-colors font-medium">Mục
+                            tiêu</a>
+                        <span class="text-[#92c9a4] font-medium">/</span>
+                        <span class="text-white font-medium" id="goalDetailBreadcrumb">Chi tiết</span>
+                    </nav>
+
+                    <!-- Header -->
+                    <div class="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
+                        <div class="flex flex-col gap-2 max-w-2xl">
+                            <div class="flex items-center gap-3 flex-wrap">
+                                <h1 class="text-white text-3xl md:text-4xl font-black leading-tight tracking-tight"
+                                    id="goalDetailTitle">Mục tiêu</h1>
+                                <span
+                                    class="px-2 py-1 bg-yellow-500/20 text-yellow-500 text-xs font-bold uppercase tracking-wider rounded"
+                                    id="goalDetailStatus">Đang thực hiện</span>
+                            </div>
+                            <p class="text-[#92c9a4] text-base md:text-lg font-normal leading-relaxed"
+                                id="goalDetailDescription">
+                                Mô tả mục tiêu
+                            </p>
+                        </div>
+                        <div class="flex gap-3 shrink-0">
+                            <button onclick="editGoal()"
+                                class="flex items-center gap-2 h-10 px-4 rounded-lg bg-[#23482f] hover:bg-[#2d5c3c] text-white text-sm font-bold transition-all">
+                                <span class="material-symbols-outlined text-[20px]">edit</span>
+                                <span class="hidden sm:inline">Chỉnh sửa</span>
+                            </button>
+                            <button onclick="completeGoal()"
+                                class="flex items-center gap-2 h-10 px-4 rounded-lg bg-primary hover:bg-[#0fd650] text-background-dark text-sm font-bold shadow-[0_0_15px_rgba(19,236,91,0.3)] transition-all">
+                                <span class="material-symbols-outlined text-[20px]">check_circle</span>
+                                <span>Hoàn thành</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Main Grid -->
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8">
+                        <!-- Left Column: Status & Metadata -->
+                        <div class="lg:col-span-4 flex flex-col gap-6">
+                            <!-- Progress Card -->
+                            <div class="bg-surface-dark rounded-2xl p-6 border border-secondary-dark shadow-lg">
+                                <h3 class="text-white text-lg font-bold mb-4 flex items-center gap-2">
+                                    <span class="material-symbols-outlined text-primary">monitoring</span>
+                                    Tiến độ tổng quan
+                                </h3>
+                                <div class="flex flex-col gap-4">
+                                    <div class="flex items-end justify-between">
+                                        <span class="text-5xl font-black text-white tracking-tighter">
+                                            <span id="goalDetailProgress">0</span><span
+                                                class="text-2xl text-[#92c9a4] font-bold">%</span>
+                                        </span>
+                                        <span class="text-[#92c9a4] text-sm font-medium mb-1">Cố lên!</span>
+                                    </div>
+                                    <div class="w-full h-3 bg-[#23482f] rounded-full overflow-hidden">
+                                        <div id="goalDetailProgressBar"
+                                            class="h-full bg-primary rounded-full transition-all" style="width: 0%;">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Deadline Card -->
+                            <div
+                                class="bg-surface-dark rounded-2xl p-6 border border-secondary-dark shadow-lg flex flex-col gap-4">
+                                <h3 class="text-white text-lg font-bold flex items-center gap-2">
+                                    <span class="material-symbols-outlined text-primary">timer</span>
+                                    Thời hạn
+                                </h3>
+                                <div class="flex items-center gap-4">
+                                    <div
+                                        class="w-12 h-12 rounded-xl bg-[#23482f] flex items-center justify-center text-white">
+                                        <span class="material-symbols-outlined">calendar_month</span>
+                                    </div>
+                                    <div>
+                                        <p class="text-[#92c9a4] text-xs uppercase font-bold tracking-wider mb-0.5">Ngày
+                                            hết hạn</p>
+                                        <p class="text-white text-lg font-bold" id="goalDetailDeadline">N/A</p>
+                                    </div>
+                                </div>
+                                <div
+                                    class="mt-2 py-3 px-4 bg-[#23482f]/50 rounded-xl border border-[#23482f] flex items-center justify-between">
+                                    <span class="text-[#92c9a4] text-sm">Còn lại</span>
+                                    <span class="text-white font-bold text-sm" id="goalDetailDaysLeft">N/A</span>
+                                </div>
+                            </div>
+
+                            <!-- Motivation Card -->
+                            <div
+                                class="bg-gradient-to-br from-surface-dark to-[#1a3825] rounded-2xl p-6 border border-secondary-dark relative overflow-hidden group">
+                                <div
+                                    class="absolute -right-4 -top-4 text-[#23482f]/50 opacity-20 transform rotate-12 group-hover:rotate-0 transition-transform duration-500">
+                                    <span class="material-symbols-outlined text-[120px]">format_quote</span>
+                                </div>
+                                <h3 class="text-white text-lg font-bold mb-3 flex items-center gap-2 relative z-10">
+                                    <span class="material-symbols-outlined text-primary">lightbulb</span>
+                                    Động lực
+                                </h3>
+                                <p class="text-white/90 italic text-sm leading-relaxed relative z-10 font-medium"
+                                    id="goalDetailMotivation">
+                                    "Hãy kiên trì và không bao giờ bỏ cuộc. Thành công sẽ đến với những ai không ngừng
+                                    nỗ lực!"
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Right Column: Milestones -->
+                        <div class="lg:col-span-8 flex flex-col gap-6">
+                            <!-- Milestones Card -->
+                            <div
+                                class="bg-surface-dark rounded-2xl p-6 md:p-8 border border-secondary-dark flex-1 flex flex-col">
+                                <div class="flex items-center justify-between mb-6">
+                                    <h3 class="text-white text-xl font-bold flex items-center gap-3">
+                                        <span class="material-symbols-outlined text-primary">checklist</span>
+                                        Các bước thực hiện
+                                    </h3>
+                                    <span class="text-[#92c9a4] text-sm font-medium bg-[#23482f] px-3 py-1 rounded-full"
+                                        id="goalMilestonesCount">0/0 hoàn thành</span>
+                                </div>
+                                <div class="flex flex-col gap-3" id="goalMilestonesList">
+                                    <p class="text-[#92c9a4] text-center py-8">Chưa có milestone nào</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Habit Detail View -->
+            <div id="habitDetailView" class="view-section">
+                <div class="max-w-[1280px] mx-auto w-full p-4 md:p-8 lg:p-10 flex flex-col gap-6 md:gap-8">
+                    <!-- Breadcrumbs -->
+                    <div class="flex items-center flex-wrap gap-2 text-sm">
+                        <a href="#habits"
+                            class="text-[#92c9a4] hover:text-primary transition-colors flex items-center gap-1">
+                            <span class="material-symbols-outlined !text-[18px]">home</span>
+                            Thói quen
+                        </a>
+                        <span class="text-[#5e826b]">/</span>
+                        <span class="text-white font-medium" id="habitDetailBreadcrumb">Chi tiết</span>
+                    </div>
+
+                    <!-- Main Grid -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
+                        <!-- Left Column: Info & Stats -->
+                        <div class="lg:col-span-2 flex flex-col gap-6 md:gap-8">
+                            <!-- Header -->
+                            <div class="flex flex-col gap-3">
+                                <div class="flex items-start justify-between gap-4">
+                                    <div>
+                                        <h1 class="text-3xl md:text-4xl font-black leading-tight tracking-tight text-white"
+                                            id="habitDetailTitle">Thói quen</h1>
+                                        <p class="mt-2 text-[#92c9a4] text-base font-normal leading-relaxed max-w-2xl"
+                                            id="habitDetailDescription">
+                                            Mô tả thói quen
+                                        </p>
+                                    </div>
+                                    <!-- Icon -->
+                                    <div
+                                        class="hidden sm:flex size-14 rounded-xl bg-primary/10 items-center justify-center text-primary border border-primary/20 shrink-0">
+                                        <span class="material-symbols-outlined !text-[32px]"
+                                            id="habitDetailIcon">check_circle</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Stats Cards -->
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                <!-- Streak Card -->
+                                <div
+                                    class="flex flex-col justify-between gap-2 rounded-xl p-5 bg-surface-dark shadow-sm border border-secondary-dark relative overflow-hidden group">
+                                    <div
+                                        class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                                        <span
+                                            class="material-symbols-outlined !text-[48px] text-primary">local_fire_department</span>
+                                    </div>
+                                    <p class="text-[#92c9a4] text-xs uppercase font-bold tracking-wider relative z-10">
+                                        Streak hiện tại</p>
+                                    <div class="flex items-baseline gap-2 relative z-10">
+                                        <p class="text-white text-3xl font-black" id="habitDetailStreak">0</p>
+                                        <span class="text-[#92c9a4] text-sm font-medium">ngày</span>
+                                    </div>
+                                </div>
+
+                                <!-- Completion Rate Card -->
+                                <div
+                                    class="flex flex-col justify-between gap-2 rounded-xl p-5 bg-surface-dark shadow-sm border border-secondary-dark relative overflow-hidden group">
+                                    <div
+                                        class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                                        <span
+                                            class="material-symbols-outlined !text-[48px] text-primary">trending_up</span>
+                                    </div>
+                                    <p class="text-[#92c9a4] text-xs uppercase font-bold tracking-wider relative z-10">
+                                        Tỷ lệ hoàn thành</p>
+                                    <div class="flex items-baseline gap-2 relative z-10">
+                                        <p class="text-white text-3xl font-black" id="habitDetailCompletionRate">0</p>
+                                        <span class="text-[#92c9a4] text-sm font-medium">%</span>
+                                    </div>
+                                </div>
+
+                                <!-- Total Days Card -->
+                                <div
+                                    class="flex flex-col justify-between gap-2 rounded-xl p-5 bg-surface-dark shadow-sm border border-secondary-dark relative overflow-hidden group">
+                                    <div
+                                        class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                                        <span
+                                            class="material-symbols-outlined !text-[48px] text-primary">calendar_month</span>
+                                    </div>
+                                    <p class="text-[#92c9a4] text-xs uppercase font-bold tracking-wider relative z-10">
+                                        Tổng số ngày</p>
+                                    <div class="flex items-baseline gap-2 relative z-10">
+                                        <p class="text-white text-3xl font-black" id="habitDetailTotalDays">0</p>
+                                        <span class="text-[#92c9a4] text-sm font-medium">ngày</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Calendar Heatmap -->
+                            <div class="rounded-xl bg-surface-dark p-6 border border-secondary-dark shadow-sm">
+                                <div class="flex items-center justify-between mb-6">
+                                    <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                                        <span class="material-symbols-outlined text-primary">calendar_month</span>
+                                        Lịch sử theo dõi
+                                    </h3>
+                                    <div class="flex gap-4 text-xs font-medium">
+                                        <div class="flex items-center gap-1.5">
+                                            <span class="size-3 rounded-sm bg-primary block"></span>
+                                            <span class="text-gray-300">Hoàn thành</span>
+                                        </div>
+                                        <div class="flex items-center gap-1.5">
+                                            <span class="size-3 rounded-sm bg-white/10 block"></span>
+                                            <span class="text-gray-300">Chưa làm</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex flex-col gap-2">
+                                    <div class="flex justify-between text-xs text-gray-400 font-medium px-1">
+                                        <span>30 ngày trước</span>
+                                        <span>Hôm nay</span>
+                                    </div>
+                                    <div class="heatmap-grid w-full" id="habitCalendarHeatmap">
+                                        <!-- Populated by JavaScript -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right Column: Today's Action -->
+                        <div class="lg:col-span-1 flex flex-col gap-6">
+                            <!-- Today's Check-in Card -->
+                            <div
+                                class="rounded-xl p-6 bg-gradient-to-br from-primary/20 to-surface-dark border border-primary/30 flex flex-col items-center text-center gap-4">
+                                <div class="p-3 bg-primary rounded-full text-black shadow-lg shadow-primary/20"
+                                    id="habitTodayIcon">
+                                    <span class="material-symbols-outlined !text-[32px]">check</span>
+                                </div>
+                                <div>
+                                    <h3 class="text-white font-bold text-lg" id="habitTodayDate">Hôm nay</h3>
+                                    <p class="text-[#92c9a4] text-sm mt-1" id="habitTodayStatus">Bạn đã hoàn thành thói
+                                        quen này chưa?</p>
+                                </div>
+                                <button onclick="toggleHabitToday()" id="habitTodayButton"
+                                    class="w-full h-12 bg-primary hover:bg-[#0fd650] text-background-dark font-bold rounded-lg transition-all shadow-[0_0_15px_rgba(19,236,91,0.3)]">
+                                    Đánh dấu hoàn thành
+                                </button>
+                            </div>
+
+                            <!-- Quick Info Card -->
+                            <div class="rounded-xl p-6 bg-surface-dark border border-secondary-dark">
+                                <h3 class="text-white font-bold mb-4 flex items-center gap-2">
+                                    <span class="material-symbols-outlined text-primary">info</span>
+                                    Thông tin
+                                </h3>
+                                <div class="flex flex-col gap-3 text-sm">
+                                    <div class="flex justify-between">
+                                        <span class="text-[#92c9a4]">Danh mục</span>
+                                        <span class="text-white font-medium" id="habitDetailCategory">N/A</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-[#92c9a4]">Lịch trình</span>
+                                        <span class="text-white font-medium" id="habitDetailSchedule">N/A</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Action Buttons -->
+                            <div class="flex flex-col gap-3">
+                                <button onclick="editHabit()"
+                                    class="flex items-center justify-center gap-2 h-10 px-4 bg-[#23482f] hover:bg-[#2d5c3c] text-white text-sm font-bold rounded-lg transition-all">
+                                    <span class="material-symbols-outlined !text-[18px]">edit</span>
+                                    Chỉnh sửa
+                                </button>
+                                <button onclick="deleteHabit()"
+                                    class="flex items-center justify-center gap-2 h-10 px-4 bg-red-900/30 hover:bg-red-900/50 text-red-400 text-sm font-bold rounded-lg transition-all border border-red-900/50">
+                                    <span class="material-symbols-outlined !text-[18px]">delete</span>
+                                    Xóa thói quen
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Footer Copyright -->
             <div class="p-6 text-center text-[#92c9a4] text-xs mb-20 md:mb-0">
                 © 2024 Life Manager. Thiết kế cho quản lý cuộc sống cá nhân.
@@ -593,15 +912,9 @@
         </nav>
     </div>
 
+    <script src="config.js"></script>
     <script>
-        // Configuration - REPLACE THESE WITH YOUR VALUES
-        const CONFIG = {
-            CLIENT_ID: '63508353735-qk6vlh3r1ioc5r3ibdo78ef4sda0k1c8.apps.googleusercontent.com',
-            API_KEY: 'AIzaSyDUybY8UbY1ikVjQ0EdkFtN9gtoHxJrHMA',
-            SPREADSHEET_ID: '1WFaBacFPOlwExLrTYfRvNlCioEHxv_2-cM7xxuCwAFw',
-            SCOPES: 'https://www.googleapis.com/auth/spreadsheets',
-            DISCOVERY_DOCS: ['https://sheets.googleapis.com/$discovery/rest?version=v4']
-        };
+        // Configuration loaded from config.js
 
         // Global State
         let tokenClient;
@@ -617,6 +930,9 @@
         // Filtered data
         let filteredTransactions = [];
         let allTransactions = [];
+        let currentGoal = null;
+        let currentHabit = null;
+        let habitLogs = [];
 
         // Initialize Google API
         function gapiLoaded() {
@@ -924,7 +1240,7 @@
 
         function renderGoalsList(goals) {
             const goalsHtml = goals.map(g => `
-                <div class="group flex flex-col sm:flex-row sm:items-center justify-between p-5 bg-white dark:bg-[#1c3324] rounded-2xl border border-gray-100 dark:border-transparent hover:border-primary/30 transition-all shadow-sm">
+                <div onclick="showGoalDetail('${g[0]}')" class="cursor-pointer group flex flex-col sm:flex-row sm:items-center justify-between p-5 bg-white dark:bg-[#1c3324] rounded-2xl border border-gray-100 dark:border-transparent hover:border-primary/30 transition-all shadow-sm">
                     <div class="flex gap-4 items-center mb-4 sm:mb-0">
                         <div class="h-12 w-12 rounded-xl bg-blue-100 dark:bg-secondary-dark flex items-center justify-center text-blue-600 dark:text-white shrink-0">
                             <span class="material-symbols-outlined">school</span>
@@ -992,10 +1308,10 @@
 
         function renderHabitsList(habits) {
             const habitsHtml = habits.map(h => `
-                <div class="group flex items-center p-4 rounded-xl bg-[#1A2C20] border border-white/5 hover:bg-[#233929] transition-all cursor-pointer">
+                <div onclick="showHabitDetail('${h[0]}')" class="group flex items-center p-4 rounded-xl bg-[#1A2C20] border border-white/5 hover:bg-[#233929] transition-all cursor-pointer">
                     <div class="flex items-center gap-4 flex-1">
                         <div class="relative flex items-center justify-center">
-                            <input class="peer appearance-none w-6 h-6 border-2 border-[#92c9a4] rounded-md checked:bg-primary checked:border-primary transition-all cursor-pointer" type="checkbox" onchange="toggleHabit('${h[0]}')"/>
+                            <input class="peer appearance-none w-6 h-6 border-2 border-[#92c9a4] rounded-md checked:bg-primary checked:border-primary transition-all cursor-pointer" type="checkbox" onchange="event.stopPropagation(); toggleHabit('${h[0]}')" onclick="event.stopPropagation()"/>
                             <span class="material-symbols-outlined absolute text-background-dark text-[18px] opacity-0 peer-checked:opacity-100 pointer-events-none transition-opacity">check</span>
                         </div>
                         <div class="flex flex-col">
@@ -1279,7 +1595,9 @@
             const viewMap = {
                 'finance': 'financeView',
                 'goals': 'goalsView',
+                'goalDetail': 'goalDetailView',
                 'habits': 'habitsView',
+                'habitDetail': 'habitDetailView',
                 'transactions': 'transactionsView',
                 'analytics': 'analyticsView'
             };
@@ -1469,6 +1787,363 @@
             }
 
             showLoading(false);
+        }
+
+        // Goal Detail Functions
+        async function showGoalDetail(goalId) {
+            const goals = await readSheet('Goals!A2:H');
+            const goal = goals.find(g => g[0] == goalId);
+
+            if (!goal) {
+                alert('Không tìm thấy mục tiêu');
+                return;
+            }
+
+            currentGoal = goal;
+
+            // Populate detail view
+            document.getElementById('goalDetailTitle').textContent = goal[1];
+            document.getElementById('goalDetailBreadcrumb').textContent = goal[1];
+            document.getElementById('goalDetailDescription').textContent = goal[2] || 'Không có mô tả';
+
+            // Progress
+            const progress = parseInt(goal[3]) || 0;
+            document.getElementById('goalDetailProgress').textContent = progress;
+            document.getElementById('goalDetailProgressBar').style.width = progress + '%';
+
+            // Status badge
+            const statusBadge = document.getElementById('goalDetailStatus');
+            const status = goal[5] || 'Active';
+            statusBadge.textContent = status === 'Active' ? 'Đang thực hiện' :
+                status === 'Completed' ? 'Hoàn thành' : 'Tạm dừng';
+            statusBadge.className = status === 'Active' ? 'px-2 py-1 bg-yellow-500/20 text-yellow-500 text-xs font-bold uppercase tracking-wider rounded' :
+                status === 'Completed' ? 'px-2 py-1 bg-primary/20 text-primary text-xs font-bold uppercase tracking-wider rounded' :
+                    'px-2 py-1 bg-gray-500/20 text-gray-400 text-xs font-bold uppercase tracking-wider rounded';
+
+            // Deadline
+            const deadline = new Date(goal[4]);
+            document.getElementById('goalDetailDeadline').textContent = formatDate(goal[4]);
+
+            // Calculate days left
+            const today = new Date();
+            const daysLeft = Math.ceil((deadline - today) / (1000 * 60 * 60 * 24));
+            const daysLeftText = daysLeft > 0 ? `${daysLeft} ngày` :
+                daysLeft === 0 ? 'Hôm nay' :
+                    `Đã quá ${Math.abs(daysLeft)} ngày`;
+            document.getElementById('goalDetailDaysLeft').textContent = daysLeftText;
+
+            // Milestones (parse from column 7 - Milestones)
+            const milestones = goal[7] ? goal[7].split('|').filter(m => m.trim()) : [];
+            renderGoalMilestones(milestones);
+
+            // Show view
+            showView('goalDetail');
+        }
+
+        function renderGoalMilestones(milestones) {
+            if (!milestones || milestones.length === 0) {
+                document.getElementById('goalMilestonesList').innerHTML = '<p class="text-[#92c9a4] text-center py-8">Chưa có milestone nào</p>';
+                document.getElementById('goalMilestonesCount').textContent = '0/0 hoàn thành';
+                return;
+            }
+
+            // Assume format: "[x] Milestone" or "[ ] Milestone"
+            const completed = milestones.filter(m => m.trim().startsWith('[x]') || m.trim().startsWith('[X]')).length;
+            document.getElementById('goalMilestonesCount').textContent = `${completed}/${milestones.length} hoàn thành`;
+
+            const milestonesHtml = milestones.map((m, index) => {
+                const isCompleted = m.trim().startsWith('[x]') || m.trim().startsWith('[X]');
+                const text = m.replace(/^\[.?\]\s*/, '').trim();
+
+                return `
+                    <label class="group flex items-start gap-4 p-4 rounded-xl ${isCompleted ? 'bg-[#23482f]/30' : 'bg-[#1a2e24]'} border border-transparent hover:${isCompleted ? 'border-[#23482f]' : 'bg-[#23482f]'} transition-all cursor-pointer select-none ${isCompleted ? 'opacity-50' : ''}">
+                        <div class="checkbox-wrapper relative flex items-center justify-center w-6 h-6 mt-0.5 shrink-0">
+                            <input ${isCompleted ? 'checked' : ''} class="peer appearance-none w-full h-full rounded border-2 border-[#92c9a4] bg-transparent cursor-pointer transition-all checked:bg-primary checked:border-primary" type="checkbox" onchange="toggleMilestone(${index})"/>
+                            <span class="material-symbols-outlined absolute text-black text-sm font-bold pointer-events-none opacity-0 peer-checked:opacity-100 transition-opacity">check</span>
+                        </div>
+                        <div class="flex flex-col gap-1 flex-1">
+                            <span class="text-white text-base font-medium ${isCompleted ? 'line-through decoration-text-secondary decoration-2' : ''}">${text}</span>
+                        </div>
+                    </label>
+                `;
+            }).join('');
+
+            document.getElementById('goalMilestonesList').innerHTML = milestonesHtml;
+        }
+
+        async function toggleMilestone(index) {
+            if (!currentGoal) return;
+
+            const milestones = currentGoal[7] ? currentGoal[7].split('|').filter(m => m.trim()) : [];
+            if (index >= milestones.length) return;
+
+            // Toggle milestone
+            const milestone = milestones[index].trim();
+            const isCompleted = milestone.startsWith('[x]') || milestone.startsWith('[X]');
+
+            milestones[index] = isCompleted ?
+                milestone.replace(/^\[x\]/i, '[ ]') :
+                milestone.replace(/^\[ \]/, '[x]');
+
+            // Update Google Sheets
+            const rowIndex = parseInt(currentGoal[0]); // Assuming ID is in first column
+            const goals = await readSheet('Goals!A2:H');
+            const goalRowIndex = goals.findIndex(g => g[0] == currentGoal[0]) + 2; // +2 for header and 0-indexing
+
+            currentGoal[7] = milestones.join('|');
+
+            await writeSheet(`Goals!H${goalRowIndex}`, [[milestones.join('|')]]);
+
+            // Calculate and update progress
+            const completed = milestones.filter(m => m.trim().startsWith('[x]') || m.trim().startsWith('[X]')).length;
+            const progress = Math.round((completed / milestones.length) * 100);
+
+            currentGoal[3] = progress;
+            await writeSheet(`Goals!D${goalRowIndex}`, [[progress]]);
+
+            // Re-render
+            renderGoalMilestones(milestones);
+            document.getElementById('goalDetailProgress').textContent = progress;
+            document.getElementById('goalDetailProgressBar').style.width = progress + '%';
+        }
+
+        function editGoal() {
+            alert('Chức năng chỉnh sửa đang được phát triển');
+        }
+
+        async function completeGoal() {
+            if (!currentGoal) return;
+
+            if (!confirm('Bạn có chắc đã hoàn thành mục tiêu này?')) return;
+
+            const goals = await readSheet('Goals!A2:H');
+            const goalRowIndex = goals.findIndex(g => g[0] == currentGoal[0]) + 2;
+
+            await writeSheet(`Goals!D${goalRowIndex}:F${goalRowIndex}`, [[100, currentGoal[4], 'Completed']]);
+
+            alert('Chúc mừng! Mục tiêu đã hoàn thành! 🎉');
+            showView('goals');
+            await loadGoalsData();
+        }
+
+        // Habit Detail Functions
+        async function showHabitDetail(habitId) {
+            const habits = await readSheet('Habits!A2:H');
+            const habit = habits.find(h => h[0] == habitId);
+
+            if (!habit) {
+                alert('Không tìm thấy thói quen');
+                return;
+            }
+
+            currentHabit = habit;
+
+            // Load habit logs
+            habitLogs = await readSheet('HabitLogs!A2:D');
+            const habitLogsFiltered = habitLogs.filter(log => log[1] == habitId);
+
+            // Populate detail view
+            document.getElementById('habitDetailTitle').textContent = habit[1];
+            document.getElementById('habitDetailBreadcrumb').textContent = habit[1];
+            document.getElementById('habitDetailDescription').textContent = habit[2] || 'Không có mô tả';
+            document.getElementById('habitDetailCategory').textContent = habit[3] || 'N/A';
+            document.getElementById('habitDetailSchedule').textContent = habit[4] || 'N/A';
+            document.getElementById('habitDetailIcon').textContent = habit[7] || 'check_circle';
+
+            // Calculate stats
+            const stats = calculateHabitStats(habitLogsFiltered);
+            document.getElementById('habitDetailStreak').textContent = stats.streak;
+            document.getElementById('habitDetailCompletionRate').textContent = stats.completionRate;
+            document.getElementById('habitDetailTotalDays').textContent = stats.totalDays;
+
+            // Render calendar
+            renderHabitCalendar(habitLogsFiltered);
+
+            // Check if today is completed
+            const today = new Date().toISOString().split('T')[0];
+            const todayLog = habitLogsFiltered.find(log => log[2] === today);
+            updateTodayButton(todayLog);
+
+            // Show view
+            showView('habitDetail');
+        }
+
+        function calculateHabitStats(logs) {
+            // Calculate total days tracked
+            const totalDays = logs.length;
+
+            // Calculate completion rate (last 30 days)
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            const last30Days = logs.filter(log => new Date(log[2]) >= thirtyDaysAgo);
+            const completed30Days = last30Days.filter(log => log[3] === 'TRUE' || log[3] === true).length;
+            const completionRate = last30Days.length > 0 ? Math.round((completed30Days / 30) * 100) : 0;
+
+            // Calculate current streak
+            const sortedLogs = logs
+                .filter(log => log[3] === 'TRUE' || log[3] === true)
+                .map(log => log[2])
+                .sort((a, b) => new Date(b) - new Date(a));
+
+            let streak = 0;
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            for (let i = 0; i < sortedLogs.length; i++) {
+                const logDate = new Date(sortedLogs[i]);
+                logDate.setHours(0, 0, 0, 0);
+
+                const expectedDate = new Date(today);
+                expectedDate.setDate(today.getDate() - i);
+                expectedDate.setHours(0, 0, 0, 0);
+
+                if (logDate.getTime() === expectedDate.getTime()) {
+                    streak++;
+                } else {
+                    break;
+                }
+            }
+
+            return {
+                streak,
+                completionRate,
+                totalDays
+            };
+        }
+
+        function renderHabitCalendar(logs) {
+            const heatmapContainer = document.getElementById('habitCalendarHeatmap');
+            if (!heatmapContainer) return;
+
+            const today = new Date();
+            const squares = [];
+
+            // Generate 30 days
+            for (let i = 29; i >= 0; i--) {
+                const date = new Date(today);
+                date.setDate(today.getDate() - i);
+                const dateStr = date.toISOString().split('T')[0];
+
+                // Check if this date has a log
+                const log = logs.find(l => l[2] === dateStr);
+                const isCompleted = log && (log[3] === 'TRUE' || log[3] === true);
+                const isToday = i === 0;
+                const isFuture = false; // We're looking at past 30 days
+
+                let classes = 'aspect-square rounded transition cursor-pointer ';
+                if (isToday) {
+                    classes += isCompleted
+                        ? 'bg-primary border-2 border-white hover:opacity-80'
+                        : 'bg-white/10 border-2 border-white hover:bg-white/20';
+                } else {
+                    classes += isCompleted
+                        ? 'bg-primary hover:opacity-80'
+                        : 'bg-white/10 hover:bg-white/20';
+                }
+
+                const title = `${dateStr}: ${isCompleted ? 'Hoàn thành' : 'Chưa làm'}`;
+                squares.push(`<div class="${classes}" title="${title}"></div>`);
+            }
+
+            heatmapContainer.innerHTML = squares.join('');
+        }
+
+        function updateTodayButton(todayLog) {
+            const button = document.getElementById('habitTodayButton');
+            const status = document.getElementById('habitTodayStatus');
+            const icon = document.getElementById('habitTodayIcon');
+
+            const isCompleted = todayLog && (todayLog[3] === 'TRUE' || todayLog[3] === true);
+
+            if (isCompleted) {
+                button.textContent = 'Đã hoàn thành ✓';
+                button.classList.remove('bg-primary', 'hover:bg-[#0fd650]');
+                button.classList.add('bg-[#23482f]', 'hover:bg-[#2d5c3c]');
+                status.textContent = 'Tuyệt vời! Bạn đã hoàn thành hôm nay';
+                icon.innerHTML = '<span class="material-symbols-outlined !text-[32px]">check_circle</span>';
+                icon.classList.remove('bg-primary');
+                icon.classList.add('bg-[#23482f]');
+            } else {
+                button.textContent = 'Đánh dấu hoàn thành';
+                button.classList.remove('bg-[#23482f]', 'hover:bg-[#2d5c3c]');
+                button.classList.add('bg-primary', 'hover:bg-[#0fd650]');
+                status.textContent = 'Bạn đã hoàn thành thói quen này chưa?';
+                icon.innerHTML = '<span class="material-symbols-outlined !text-[32px]">check</span>';
+                icon.classList.remove('bg-[#23482f]');
+                icon.classList.add('bg-primary');
+            }
+        }
+
+        async function toggleHabitToday() {
+            if (!currentHabit) return;
+
+            showLoading(true);
+
+            const today = new Date().toISOString().split('T')[0];
+            const habitId = currentHabit[0];
+
+            // Check if today's log exists
+            const todayLog = habitLogs.find(log => log[1] == habitId && log[2] === today);
+
+            if (todayLog) {
+                // Toggle completion status
+                const currentStatus = todayLog[3] === 'TRUE' || todayLog[3] === true;
+                const newStatus = !currentStatus;
+
+                // Find row index in HabitLogs sheet
+                const allLogs = await readSheet('HabitLogs!A2:D');
+                const rowIndex = allLogs.findIndex(log => log[0] == todayLog[0]) + 2; // +2 for header and 0-indexing
+
+                await writeSheet(`HabitLogs!D${rowIndex}`, [[newStatus ? 'TRUE' : 'FALSE']]);
+
+                // Update local data
+                todayLog[3] = newStatus ? 'TRUE' : 'FALSE';
+            } else {
+                // Create new log
+                const newLogId = Date.now();
+                await appendSheet('HabitLogs!A:D', [[
+                    newLogId,
+                    habitId,
+                    today,
+                    'TRUE'
+                ]]);
+
+                // Add to local data
+                habitLogs.push([newLogId, habitId, today, 'TRUE']);
+            }
+
+            // Recalculate and update stats
+            const habitLogsFiltered = habitLogs.filter(log => log[1] == habitId);
+            const stats = calculateHabitStats(habitLogsFiltered);
+
+            document.getElementById('habitDetailStreak').textContent = stats.streak;
+            document.getElementById('habitDetailCompletionRate').textContent = stats.completionRate;
+            document.getElementById('habitDetailTotalDays').textContent = stats.totalDays;
+
+            // Update Habits sheet with new stats
+            const habits = await readSheet('Habits!A2:H');
+            const habitRowIndex = habits.findIndex(h => h[0] == habitId) + 2;
+            await writeSheet(`Habits!F${habitRowIndex}:G${habitRowIndex}`, [[stats.streak, stats.completionRate]]);
+
+            // Re-render calendar and button
+            renderHabitCalendar(habitLogsFiltered);
+            const todayLogUpdated = habitLogsFiltered.find(log => log[2] === today);
+            updateTodayButton(todayLogUpdated);
+
+            showLoading(false);
+        }
+
+        function editHabit() {
+            alert('Chức năng chỉnh sửa đang được phát triển');
+        }
+
+        async function deleteHabit() {
+            if (!currentHabit) return;
+
+            if (!confirm('Bạn có chắc muốn xóa thói quen này? Tất cả dữ liệu tracking sẽ bị mất.')) return;
+
+            // TODO: Implement delete
+            alert('Chức năng xóa đang được phát triển');
         }
 
         // Delete functions
