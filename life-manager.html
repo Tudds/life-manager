@@ -1,0 +1,1514 @@
+<!DOCTYPE html>
+<html class="dark" lang="vi">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Life Manager - Quản lý Cuộc sống</title>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&display=swap" rel="stylesheet" />
+
+    <!-- Material Symbols -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+        rel="stylesheet" />
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+    <!-- Google API Client -->
+    <script src="https://apis.google.com/js/api.js"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#13ec5b",
+                        "background-light": "#f6f8f6",
+                        "background-dark": "#102216",
+                        "surface-dark": "#1c2e22",
+                        "secondary-dark": "#23482f",
+                    },
+                    fontFamily: {
+                        "display": ["Manrope", "Noto Sans", "sans-serif"],
+                        "body": ["Manrope", "Noto Sans", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #102216;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #23482f;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #13ec5b;
+        }
+
+        .view-section {
+            display: none;
+        }
+
+        .view-section.active {
+            display: block;
+        }
+
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(16, 34, 22, 0.9);
+            z-index: 9999;
+            backdrop-filter: blur(4px);
+        }
+
+        .loading-overlay.active {
+            display: flex;
+        }
+
+        .mobile-nav-link {
+            color: #92c9a4;
+        }
+
+        .mobile-nav-link.active {
+            color: #13ec5b;
+            background-color: rgba(19, 236, 91, 0.1);
+        }
+    </style>
+</head>
+
+<body
+    class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white font-display antialiased overflow-hidden">
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay items-center justify-center" id="loadingOverlay">
+        <div class="flex flex-col items-center gap-4">
+            <div class="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+            <p class="text-white text-lg font-medium">Đang tải dữ liệu...</p>
+        </div>
+    </div>
+
+    <!-- Transaction Modal -->
+    <div class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 hidden" id="transactionModal">
+        <div class="bg-surface-dark rounded-2xl p-6 max-w-md w-full mx-4 border border-secondary-dark">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-white text-xl font-bold">Thêm Giao dịch</h3>
+                <button onclick="closeTransactionModal()" class="text-[#92c9a4] hover:text-white">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <form onsubmit="handleAddTransaction(event)" class="flex flex-col gap-4">
+                <div>
+                    <label class="text-[#92c9a4] text-sm font-medium mb-2 block">Loại giao dịch</label>
+                    <select id="transactionType"
+                        class="w-full bg-secondary-dark text-white rounded-lg px-4 py-2 border border-secondary-dark focus:border-primary outline-none">
+                        <option value="Expense">Chi tiêu</option>
+                        <option value="Income">Thu nhập</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[#92c9a4] text-sm font-medium mb-2 block">Số tiền (VND)</label>
+                    <input type="number" id="transactionAmount" required
+                        class="w-full bg-secondary-dark text-white rounded-lg px-4 py-2 border border-secondary-dark focus:border-primary outline-none"
+                        placeholder="50000">
+                </div>
+                <div>
+                    <label class="text-[#92c9a4] text-sm font-medium mb-2 block">Danh mục</label>
+                    <input type="text" id="transactionCategory" required
+                        class="w-full bg-secondary-dark text-white rounded-lg px-4 py-2 border border-secondary-dark focus:border-primary outline-none"
+                        placeholder="Ăn uống">
+                </div>
+                <div>
+                    <label class="text-[#92c9a4] text-sm font-medium mb-2 block">Mô tả</label>
+                    <input type="text" id="transactionDescription" required
+                        class="w-full bg-secondary-dark text-white rounded-lg px-4 py-2 border border-secondary-dark focus:border-primary outline-none"
+                        placeholder="Cà phê sáng">
+                </div>
+                <div>
+                    <label class="text-[#92c9a4] text-sm font-medium mb-2 block">Ví</label>
+                    <select id="transactionWallet"
+                        class="w-full bg-secondary-dark text-white rounded-lg px-4 py-2 border border-secondary-dark focus:border-primary outline-none">
+                        <option value="Tiền mặt">Tiền mặt</option>
+                        <option value="Ngân hàng">Ngân hàng</option>
+                        <option value="Thẻ tín dụng">Thẻ tín dụng</option>
+                    </select>
+                </div>
+                <button type="submit"
+                    class="w-full bg-primary hover:bg-[#0fd650] text-background-dark font-bold py-3 rounded-lg transition-all shadow-[0_0_15px_rgba(19,236,91,0.3)]">
+                    Lưu Giao dịch
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Goal Modal -->
+    <div class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 hidden" id="goalModal">
+        <div class="bg-surface-dark rounded-2xl p-6 max-w-md w-full mx-4 border border-secondary-dark">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-white text-xl font-bold">Thêm Mục tiêu</h3>
+                <button onclick="closeGoalModal()" class="text-[#92c9a4] hover:text-white">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <form onsubmit="handleAddGoal(event)" class="flex flex-col gap-4">
+                <div>
+                    <label class="text-[#92c9a4] text-sm font-medium mb-2 block">Tên mục tiêu</label>
+                    <input type="text" id="goalTitle" required
+                        class="w-full bg-secondary-dark text-white rounded-lg px-4 py-2 border border-secondary-dark focus:border-primary outline-none"
+                        placeholder="Học Tiếng Anh">
+                </div>
+                <div>
+                    <label class="text-[#92c9a4] text-sm font-medium mb-2 block">Mô tả</label>
+                    <textarea id="goalDescription" required
+                        class="w-full bg-secondary-dark text-white rounded-lg px-4 py-2 border border-secondary-dark focus:border-primary outline-none"
+                        rows="2" placeholder="Đạt IELTS 7.0"></textarea>
+                </div>
+                <div>
+                    <label class="text-[#92c9a4] text-sm font-medium mb-2 block">Danh mục</label>
+                    <input type="text" id="goalCategory" required
+                        class="w-full bg-secondary-dark text-white rounded-lg px-4 py-2 border border-secondary-dark focus:border-primary outline-none"
+                        placeholder="Education">
+                </div>
+                <div>
+                    <label class="text-[#92c9a4] text-sm font-medium mb-2 block">Deadline</label>
+                    <input type="date" id="goalDeadline" required
+                        class="w-full bg-secondary-dark text-white rounded-lg px-4 py-2 border border-secondary-dark focus:border-primary outline-none">
+                </div>
+                <button type="submit"
+                    class="w-full bg-primary hover:bg-[#0fd650] text-background-dark font-bold py-3 rounded-lg transition-all shadow-[0_0_15px_rgba(19,236,91,0.3)]">
+                    Lưu Mục tiêu
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Habit Modal -->
+    <div class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 hidden" id="habitModal">
+        <div class="bg-surface-dark rounded-2xl p-6 max-w-md w-full mx-4 border border-secondary-dark">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-white text-xl font-bold">Thêm Thói quen</h3>
+                <button onclick="closeHabitModal()" class="text-[#92c9a4] hover:text-white">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <form onsubmit="handleAddHabit(event)" class="flex flex-col gap-4">
+                <div>
+                    <label class="text-[#92c9a4] text-sm font-medium mb-2 block">Tên thói quen</label>
+                    <input type="text" id="habitTitle" required
+                        class="w-full bg-secondary-dark text-white rounded-lg px-4 py-2 border border-secondary-dark focus:border-primary outline-none"
+                        placeholder="Chạy bộ sáng sớm">
+                </div>
+                <div>
+                    <label class="text-[#92c9a4] text-sm font-medium mb-2 block">Mô tả</label>
+                    <textarea id="habitDescription" required
+                        class="w-full bg-secondary-dark text-white rounded-lg px-4 py-2 border border-secondary-dark focus:border-primary outline-none"
+                        rows="2" placeholder="Chạy 5km mỗi ngày"></textarea>
+                </div>
+                <div>
+                    <label class="text-[#92c9a4] text-sm font-medium mb-2 block">Danh mục</label>
+                    <input type="text" id="habitCategory" required
+                        class="w-full bg-secondary-dark text-white rounded-lg px-4 py-2 border border-secondary-dark focus:border-primary outline-none"
+                        placeholder="Health">
+                </div>
+                <div>
+                    <label class="text-[#92c9a4] text-sm font-medium mb-2 block">Lịch trình</label>
+                    <input type="text" id="habitSchedule" required
+                        class="w-full bg-secondary-dark text-white rounded-lg px-4 py-2 border border-secondary-dark focus:border-primary outline-none"
+                        placeholder="05:30">
+                </div>
+                <button type="submit"
+                    class="w-full bg-primary hover:bg-[#0fd650] text-background-dark font-bold py-3 rounded-lg transition-all shadow-[0_0_15px_rgba(19,236,91,0.3)]">
+                    Lưu Thói quen
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Login Screen -->
+    <div class="fixed inset-0 bg-background-dark flex items-center justify-center z-50" id="loginScreen">
+        <div class="max-w-md w-full mx-4 bg-surface-dark rounded-2xl p-8 border border-secondary-dark shadow-2xl">
+            <div class="flex flex-col items-center gap-6">
+                <div class="p-4 bg-primary/20 rounded-full">
+                    <span class="material-symbols-outlined text-primary text-5xl">check_circle</span>
+                </div>
+                <div class="text-center">
+                    <h1 class="text-3xl font-black text-white mb-2">Life Manager</h1>
+                    <p class="text-[#92c9a4] text-base">Quản lý Cuộc sống Thông minh</p>
+                </div>
+                <div class="w-full space-y-4">
+                    <button onclick="handleGoogleSignIn()"
+                        class="w-full flex items-center justify-center gap-3 h-12 px-6 bg-primary hover:bg-[#0fd650] text-background-dark text-sm font-bold rounded-lg shadow-[0_0_15px_rgba(19,236,91,0.3)] transition-all">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <path
+                                d="M19.6 10.227c0-.709-.064-1.39-.182-2.045H10v3.868h5.382a4.6 4.6 0 01-1.996 3.018v2.51h3.232c1.891-1.742 2.982-4.305 2.982-7.35z"
+                                fill="#4285F4" />
+                            <path
+                                d="M10 20c2.7 0 4.964-.895 6.618-2.423l-3.232-2.509c-.895.6-2.04.955-3.386.955-2.605 0-4.81-1.76-5.595-4.123H1.064v2.59A9.996 9.996 0 0010 20z"
+                                fill="#34A853" />
+                            <path
+                                d="M4.405 11.9c-.2-.6-.314-1.24-.314-1.9 0-.66.114-1.3.314-1.9V5.51H1.064A9.996 9.996 0 000 10c0 1.614.386 3.14 1.064 4.49l3.34-2.59z"
+                                fill="#FBBC05" />
+                            <path
+                                d="M10 3.977c1.468 0 2.786.505 3.823 1.496l2.868-2.868C14.959.99 12.695 0 10 0 6.09 0 2.71 2.24 1.064 5.51l3.34 2.59C5.19 5.736 7.395 3.977 10 3.977z"
+                                fill="#EA4335" />
+                        </svg>
+                        <span>Đăng nhập với Google</span>
+                    </button>
+                    <p class="text-xs text-[#92c9a4] text-center">
+                        Dữ liệu của bạn được lưu trữ an toàn trên Google Sheets
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="flex h-screen w-full overflow-hidden" id="mainApp" style="display: none;">
+        <!-- Side Navigation -->
+        <div
+            class="hidden md:flex flex-col w-72 h-full bg-background-dark border-r border-secondary-dark p-4 justify-between shrink-0">
+            <div class="flex flex-col gap-8">
+                <!-- User Profile -->
+                <div class="flex items-center gap-3 px-2">
+                    <div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-12 border-2 border-secondary-dark"
+                        id="userAvatar">
+                    </div>
+                    <div class="flex flex-col">
+                        <h1 class="text-white text-base font-bold leading-normal" id="userName">User</h1>
+                        <p class="text-[#92c9a4] text-xs font-normal leading-normal">Gói Cao Cấp</p>
+                    </div>
+                </div>
+
+                <!-- Navigation Links -->
+                <nav class="flex flex-col gap-2">
+                    <a href="#habits"
+                        class="nav-link flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-secondary-dark transition-colors group">
+                        <span
+                            class="material-symbols-outlined text-[#92c9a4] group-hover:text-white">check_circle</span>
+                        <p class="text-[#92c9a4] group-hover:text-white text-sm font-medium leading-normal">Thói quen
+                            hằng ngày</p>
+                    </a>
+                    <a href="#goals"
+                        class="nav-link flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-secondary-dark transition-colors group">
+                        <span class="material-symbols-outlined text-[#92c9a4] group-hover:text-white">flag</span>
+                        <p class="text-[#92c9a4] group-hover:text-white text-sm font-medium leading-normal">Mục tiêu cá
+                            nhân</p>
+                    </a>
+                    <a href="#finance"
+                        class="nav-link flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-secondary-dark transition-colors group">
+                        <span
+                            class="material-symbols-outlined text-[#92c9a4] group-hover:text-white">attach_money</span>
+                        <p class="text-[#92c9a4] group-hover:text-white text-sm font-medium leading-normal">Chi tiêu cá
+                            nhân</p>
+                    </a>
+                    <a href="#transactions"
+                        class="nav-link flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-secondary-dark transition-colors group">
+                        <span
+                            class="material-symbols-outlined text-[#92c9a4] group-hover:text-white">receipt_long</span>
+                        <p class="text-[#92c9a4] group-hover:text-white text-sm font-medium leading-normal">Quản lý giao
+                            dịch</p>
+                    </a>
+                    <a href="#analytics"
+                        class="nav-link flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-secondary-dark transition-colors group">
+                        <span class="material-symbols-outlined text-[#92c9a4] group-hover:text-white">analytics</span>
+                        <p class="text-[#92c9a4] group-hover:text-white text-sm font-medium leading-normal">Báo cáo tổng
+                            hợp</p>
+                    </a>
+                </nav>
+            </div>
+
+            <!-- Bottom Actions -->
+            <div class="flex flex-col gap-2">
+                <button
+                    class="flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-secondary-dark transition-colors text-left w-full">
+                    <span class="material-symbols-outlined text-[#92c9a4]">settings</span>
+                    <p class="text-[#92c9a4] text-sm font-medium">Cài đặt</p>
+                </button>
+                <button onclick="handleSignOut()"
+                    class="flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-secondary-dark transition-colors text-left w-full">
+                    <span class="material-symbols-outlined text-[#92c9a4]">logout</span>
+                    <p class="text-[#92c9a4] text-sm font-medium">Đăng xuất</p>
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 flex flex-col h-full overflow-y-auto relative scroll-smooth">
+
+            <!-- Finance Dashboard View -->
+            <div id="financeView" class="view-section active">
+                <div class="max-w-[1200px] mx-auto w-full p-6 md:p-8 lg:p-10 flex flex-col gap-8">
+                    <!-- Page Header -->
+                    <div class="flex flex-col md:flex-row flex-wrap justify-between items-start md:items-center gap-6">
+                        <div class="flex flex-col gap-2">
+                            <h2 class="text-white text-3xl md:text-4xl font-black leading-tight tracking-tight">Bảng
+                                điều khiển tài chính</h2>
+                            <p class="text-[#92c9a4] text-base font-normal" id="financeSubtitle">Tổng quan tình hình thu
+                                chi</p>
+                        </div>
+                        <div class="flex gap-3 flex-wrap">
+                            <!-- Date Range Filter -->
+                            <div
+                                class="flex items-center gap-2 bg-surface-dark rounded-lg px-4 py-2 border border-secondary-dark">
+                                <span class="material-symbols-outlined text-[#92c9a4] text-sm">calendar_month</span>
+                                <input type="date" id="startDate"
+                                    class="bg-transparent text-white text-sm outline-none border-none w-32" />
+                                <span class="text-[#92c9a4]">-</span>
+                                <input type="date" id="endDate"
+                                    class="bg-transparent text-white text-sm outline-none border-none w-32" />
+                                <button onclick="applyDateFilter()"
+                                    class="ml-2 px-3 py-1 bg-primary hover:bg-[#0fd650] text-background-dark text-xs font-bold rounded transition-all">
+                                    Lọc
+                                </button>
+                            </div>
+                            <button onclick="showAddTransactionModal()"
+                                class="flex items-center justify-center rounded-lg h-12 px-6 bg-primary hover:bg-[#3bf577] text-background-dark text-sm font-bold shadow-[0_0_15px_rgba(19,236,91,0.3)] transition-all">
+                                <span class="material-symbols-outlined mr-2">add</span>
+                                <span>Thêm giao dịch</span>
+                            </button>
+                            <!-- Export Button -->
+                            <button onclick="exportToCSV()"
+                                class="flex items-center justify-center rounded-lg h-12 px-6 bg-secondary-dark hover:bg-[#2c5a3b] text-white text-sm font-bold transition-all">
+                                <span class="material-symbols-outlined mr-2 text-sm">download</span>
+                                <span>Export CSV</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Stats Grid -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" id="financeStats">
+                        <!-- Stats will be populated by JavaScript -->
+                    </div>
+
+                    <!-- Charts Section -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="lg:col-span-2 rounded-xl bg-surface-dark border border-secondary-dark p-6">
+                            <h3 class="text-white text-lg font-bold mb-4">Thu nhập vs Chi tiêu</h3>
+                            <canvas id="incomeExpenseChart" class="w-full" style="max-height: 300px;"></canvas>
+                        </div>
+                        <div class="rounded-xl bg-surface-dark border border-secondary-dark p-6">
+                            <h3 class="text-white text-lg font-bold mb-4">Phân bổ chi tiêu</h3>
+                            <canvas id="expensePieChart" class="w-full" style="max-height: 300px;"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Recent Transactions -->
+                    <div class="flex flex-col gap-4">
+                        <div class="flex justify-between items-end px-1">
+                            <h2 class="text-white text-xl font-bold leading-tight">Giao dịch gần đây</h2>
+                            <a href="#transactions" class="text-primary text-sm font-bold hover:underline">Xem tất
+                                cả</a>
+                        </div>
+                        <div class="rounded-xl border border-secondary-dark bg-surface-dark overflow-hidden">
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left border-collapse" id="recentTransactionsTable">
+                                    <!-- Table populated by JavaScript -->
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Goals Dashboard View -->
+            <div id="goalsView" class="view-section">
+                <div class="max-w-7xl mx-auto w-full p-4 md:p-8 lg:p-10 flex flex-col gap-8">
+                    <div class="flex flex-wrap justify-between items-end gap-4">
+                        <div class="flex flex-col gap-2">
+                            <h2 class="text-3xl md:text-4xl font-black leading-tight tracking-tight dark:text-white">Xin
+                                chào! 👋</h2>
+                            <p class="text-[#92c9a4] text-base font-normal">Hôm nay là cơ hội tuyệt vời để hoàn thành
+                                mục tiêu.</p>
+                        </div>
+                        <button onclick="showAddGoalModal()"
+                            class="flex items-center justify-center gap-2 rounded-lg bg-primary hover:bg-[#0fd650] text-[#112217] px-5 py-2.5 font-bold transition-all shadow-[0_0_15px_rgba(19,236,91,0.3)]">
+                            <span class="material-symbols-outlined">add</span>
+                            <span>Thêm mục tiêu</span>
+                        </button>
+                    </div>
+
+                    <!-- Stats Row -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="goalsStats">
+                        <!-- Populated by JavaScript -->
+                    </div>
+
+                    <!-- Goals List -->
+                    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                        <div class="xl:col-span-2 flex flex-col gap-4">
+                            <h3 class="text-lg font-bold dark:text-white flex items-center gap-2">
+                                <span class="w-1.5 h-6 bg-primary rounded-full"></span>
+                                Đang thực hiện
+                            </h3>
+                            <div class="flex flex-col gap-3" id="goalsList">
+                                <!-- Populated by JavaScript -->
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col gap-6" id="goalsWidgets">
+                            <!-- Populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Habits Dashboard View -->
+            <div id="habitsView" class="view-section">
+                <div class="px-6 md:px-10 pb-10 flex flex-col gap-8 max-w-[1400px]">
+                    <header class="w-full px-0 py-8">
+                        <div class="flex flex-wrap justify-between items-center gap-4">
+                            <div class="flex flex-col gap-1">
+                                <h2 class="text-3xl md:text-4xl font-black tracking-tight text-white">Xin chào!</h2>
+                                <p class="text-[#92c9a4] text-base font-medium" id="habitsDate">Thứ Tư, 24 Tháng 10</p>
+                            </div>
+                            <button onclick="showAddHabitModal()"
+                                class="flex items-center gap-2 bg-primary hover:bg-green-400 text-background-dark px-5 py-2.5 rounded-lg font-bold text-sm transition-all shadow-[0_0_15px_rgba(19,236,91,0.3)]">
+                                <span class="material-symbols-outlined text-[20px]">add</span>
+                                Thêm thói quen mới
+                            </button>
+                        </div>
+                    </header>
+
+                    <!-- Stats Overview -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="habitsStats">
+                        <!-- Populated by JavaScript -->
+                    </div>
+
+                    <!-- Main Grid Layout -->
+                    <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                        <div class="xl:col-span-2 flex flex-col gap-8">
+                            <!-- Progress Section -->
+                            <div class="bg-[#1A2C20] rounded-2xl p-6 border border-white/5" id="habitsProgress">
+                                <!-- Populated by JavaScript -->
+                            </div>
+
+                            <!-- Habits List -->
+                            <div class="flex flex-col gap-4">
+                                <h3 class="text-xl font-bold text-white">Danh sách thói quen</h3>
+                                <div class="flex flex-col gap-3" id="habitsList">
+                                    <!-- Populated by JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col gap-6" id="habitsWidgets">
+                            <!-- Populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Transactions Management View -->
+            <div id="transactionsView" class="view-section">
+                <div class="flex-1 flex justify-center w-full px-4 md:px-10 py-6 md:py-10">
+                    <div class="w-full max-w-[1280px] flex flex-col gap-6 md:gap-8">
+                        <div class="flex flex-wrap justify-between gap-3 px-4">
+                            <div class="flex flex-col gap-2">
+                                <h1
+                                    class="text-white text-3xl sm:text-4xl font-black leading-tight tracking-[-0.033em]">
+                                    Thêm giao dịch mới</h1>
+                                <p class="text-[#92c9a4] text-base font-normal leading-normal">Nhập thông tin chi tiết
+                                    về khoản thu hoặc chi của bạn</p>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 px-4" id="transactionForm">
+                            <!-- Populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analytics View -->
+            <div id="analyticsView" class="view-section">
+                <div class="max-w-[1200px] mx-auto w-full p-6 md:p-8 lg:p-10 flex flex-col gap-8">
+                    <h2 class="text-white text-3xl md:text-4xl font-black">Báo cáo tổng hợp</h2>
+                    <p class="text-[#92c9a4] text-base">Chức năng đang được phát triển...</p>
+                </div>
+            </div>
+
+            <!-- Footer Copyright -->
+            <div class="p-6 text-center text-[#92c9a4] text-xs mb-20 md:mb-0">
+                © 2024 Life Manager. Thiết kế cho quản lý cuộc sống cá nhân.
+            </div>
+        </main>
+
+        <!-- Mobile Bottom Navigation -->
+        <nav class="md:hidden fixed bottom-0 left-0 right-0 bg-surface-dark border-t border-secondary-dark z-40">
+            <div class="flex justify-around items-center h-16 px-2">
+                <a href="#habits"
+                    class="mobile-nav-link flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-lg transition-colors flex-1">
+                    <span class="material-symbols-outlined text-xl">check_circle</span>
+                    <span class="text-[10px] font-medium">Thói quen</span>
+                </a>
+                <a href="#goals"
+                    class="mobile-nav-link flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-lg transition-colors flex-1">
+                    <span class="material-symbols-outlined text-xl">flag</span>
+                    <span class="text-[10px] font-medium">Mục tiêu</span>
+                </a>
+                <a href="#finance"
+                    class="mobile-nav-link flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-lg transition-colors flex-1">
+                    <span class="material-symbols-outlined text-xl">attach_money</span>
+                    <span class="text-[10px] font-medium">Tài chính</span>
+                </a>
+                <a href="#transactions"
+                    class="mobile-nav-link flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-lg transition-colors flex-1">
+                    <span class="material-symbols-outlined text-xl">receipt_long</span>
+                    <span class="text-[10px] font-medium">Giao dịch</span>
+                </a>
+                <a href="#analytics"
+                    class="mobile-nav-link flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-lg transition-colors flex-1">
+                    <span class="material-symbols-outlined text-xl">analytics</span>
+                    <span class="text-[10px] font-medium">Báo cáo</span>
+                </a>
+            </div>
+        </nav>
+    </div>
+
+    <script>
+        // Configuration - REPLACE THESE WITH YOUR VALUES
+        const CONFIG = {
+            CLIENT_ID: '63508353735-qk6vlh3r1ioc5r3ibdo78ef4sda0k1c8.apps.googleusercontent.com',
+            API_KEY: 'AIzaSyDUybY8UbY1ikVjQ0EdkFtN9gtoHxJrHMA',
+            SPREADSHEET_ID: '1WFaBacFPOlwExLrTYfRvNlCioEHxv_2-cM7xxuCwAFw',
+            SCOPES: 'https://www.googleapis.com/auth/spreadsheets',
+            DISCOVERY_DOCS: ['https://sheets.googleapis.com/$discovery/rest?version=v4']
+        };
+
+        // Global State
+        let tokenClient;
+        let gapiInited = false;
+        let gisInited = false;
+        let currentUser = null;
+        let accessToken = null;
+
+        // Chart objects
+        let incomeExpenseChartObj = null;
+        let expensePieChartObj = null;
+
+        // Filtered data
+        let filteredTransactions = [];
+        let allTransactions = [];
+
+        // Initialize Google API
+        function gapiLoaded() {
+            gapi.load('client', initializeGapiClient);
+        }
+
+        async function initializeGapiClient() {
+            await gapi.client.init({
+                apiKey: CONFIG.API_KEY,
+                discoveryDocs: CONFIG.DISCOVERY_DOCS,
+            });
+            gapiInited = true;
+            maybeEnableButtons();
+        }
+
+        function gisLoaded() {
+            tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: CONFIG.CLIENT_ID,
+                scope: CONFIG.SCOPES,
+                callback: '',
+            });
+            gisInited = true;
+            maybeEnableButtons();
+        }
+
+        function maybeEnableButtons() {
+            if (gapiInited && gisInited) {
+                console.log('Google APIs initialized');
+            }
+        }
+
+        // Authentication
+        function handleGoogleSignIn() {
+            tokenClient.callback = async (resp) => {
+                if (resp.error !== undefined) {
+                    throw (resp);
+                }
+                accessToken = gapi.client.getToken().access_token;
+                await onSignIn();
+            };
+
+            if (gapi.client.getToken() === null) {
+                tokenClient.requestAccessToken({ prompt: 'consent' });
+            } else {
+                tokenClient.requestAccessToken({ prompt: '' });
+            }
+        }
+
+        async function onSignIn() {
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('mainApp').style.display = 'flex';
+
+            // Set user info (you can enhance this with actual Google profile data)
+            document.getElementById('userName').textContent = 'User';
+
+            // Load initial data
+            await loadAllData();
+        }
+
+        function handleSignOut() {
+            const token = gapi.client.getToken();
+            if (token !== null) {
+                google.accounts.oauth2.revoke(token.access_token);
+                gapi.client.setToken('');
+            }
+            document.getElementById('mainApp').style.display = 'none';
+            document.getElementById('loginScreen').style.display = 'flex';
+        }
+
+        // Google Sheets Operations
+        async function readSheet(range) {
+            try {
+                const response = await gapi.client.sheets.spreadsheets.values.get({
+                    spreadsheetId: CONFIG.SPREADSHEET_ID,
+                    range: range,
+                });
+                return response.result.values || [];
+            } catch (err) {
+                console.error('Error reading sheet:', err);
+                return [];
+            }
+        }
+
+        async function writeSheet(range, values) {
+            try {
+                await gapi.client.sheets.spreadsheets.values.update({
+                    spreadsheetId: CONFIG.SPREADSHEET_ID,
+                    range: range,
+                    valueInputOption: 'USER_ENTERED',
+                    resource: {
+                        values: values
+                    }
+                });
+                return true;
+            } catch (err) {
+                console.error('Error writing sheet:', err);
+                return false;
+            }
+        }
+
+        async function appendSheet(range, values) {
+            try {
+                await gapi.client.sheets.spreadsheets.values.append({
+                    spreadsheetId: CONFIG.SPREADSHEET_ID,
+                    range: range,
+                    valueInputOption: 'USER_ENTERED',
+                    resource: {
+                        values: values
+                    }
+                });
+                return true;
+            } catch (err) {
+                console.error('Error appending to sheet:', err);
+                return false;
+            }
+        }
+
+        // Data Loading
+        async function loadAllData() {
+            showLoading(true);
+            await Promise.all([
+                loadFinanceData(),
+                loadGoalsData(),
+                loadHabitsData()
+            ]);
+            showLoading(false);
+        }
+
+        async function loadFinanceData() {
+            const transactions = await readSheet('Transactions!A2:H');
+            allTransactions = transactions;
+            filteredTransactions = transactions;
+
+            // Set default date filter to current month
+            const now = new Date();
+            const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+            const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+            document.getElementById('startDate').valueAsDate = firstDay;
+            document.getElementById('endDate').valueAsDate = lastDay;
+
+            renderFinanceStats(transactions);
+            renderRecentTransactions(transactions.slice(0, 5));
+            renderIncomeExpenseChart(transactions);
+            renderExpensePieChart(transactions);
+        }
+
+        async function loadGoalsData() {
+            const goals = await readSheet('Goals!A2:H');
+            renderGoalsStats(goals);
+            renderGoalsList(goals);
+        }
+
+        async function loadHabitsData() {
+            const habits = await readSheet('Habits!A2:H');
+            const logs = await readSheet('HabitLogs!A2:D');
+            renderHabitsStats(habits, logs);
+            renderHabitsList(habits);
+        }
+
+        // Rendering Functions
+        function renderFinanceStats(transactions) {
+            const stats = calculateFinanceStats(transactions);
+            const statsHtml = `
+                <div class="flex flex-col gap-3 rounded-xl p-6 bg-surface-dark border border-secondary-dark">
+                    <div class="flex justify-between items-start">
+                        <div class="p-2 bg-secondary-dark rounded-lg text-primary">
+                            <span class="material-symbols-outlined">payments</span>
+                        </div>
+                        <span class="text-primary bg-primary/10 px-2 py-1 rounded text-xs font-bold">+${stats.incomeGrowth}%</span>
+                    </div>
+                    <div>
+                        <p class="text-[#92c9a4] text-sm font-medium mb-1">Tổng thu nhập</p>
+                        <p class="text-white text-2xl font-bold tracking-tight">${formatCurrency(stats.totalIncome)}</p>
+                    </div>
+                </div>
+                <div class="flex flex-col gap-3 rounded-xl p-6 bg-surface-dark border border-secondary-dark">
+                    <div class="flex justify-between items-start">
+                        <div class="p-2 bg-secondary-dark rounded-lg text-white">
+                            <span class="material-symbols-outlined">shopping_cart</span>
+                        </div>
+                        <span class="text-red-400 bg-red-400/10 px-2 py-1 rounded text-xs font-bold">+${stats.expenseGrowth}%</span>
+                    </div>
+                    <div>
+                        <p class="text-[#92c9a4] text-sm font-medium mb-1">Tổng chi tiêu</p>
+                        <p class="text-white text-2xl font-bold tracking-tight">${formatCurrency(stats.totalExpense)}</p>
+                    </div>
+                </div>
+                <div class="flex flex-col gap-3 rounded-xl p-6 bg-surface-dark border border-secondary-dark">
+                    <div class="flex justify-between items-start">
+                        <div class="p-2 bg-secondary-dark rounded-lg text-primary">
+                            <span class="material-symbols-outlined">savings</span>
+                        </div>
+                        <span class="text-primary bg-primary/10 px-2 py-1 rounded text-xs font-bold">Tốt</span>
+                    </div>
+                    <div>
+                        <p class="text-[#92c9a4] text-sm font-medium mb-1">Tiết kiệm</p>
+                        <p class="text-white text-2xl font-bold tracking-tight">${formatCurrency(stats.savings)}</p>
+                    </div>
+                </div>
+                <div class="flex flex-col gap-3 rounded-xl p-6 bg-surface-dark border border-secondary-dark">
+                    <div class="flex justify-between items-start">
+                        <div class="p-2 bg-secondary-dark rounded-lg text-orange-400">
+                            <span class="material-symbols-outlined">credit_card</span>
+                        </div>
+                        <span class="text-[#92c9a4] bg-[#92c9a4]/10 px-2 py-1 rounded text-xs font-bold">0%</span>
+                    </div>
+                    <div>
+                        <p class="text-[#92c9a4] text-sm font-medium mb-1">Nợ cần trả</p>
+                        <p class="text-white text-2xl font-bold tracking-tight">${formatCurrency(stats.debt)}</p>
+                    </div>
+                </div>
+            `;
+            document.getElementById('financeStats').innerHTML = statsHtml;
+        }
+
+        function renderRecentTransactions(transactions) {
+            if (!transactions || transactions.length === 0) {
+                document.getElementById('recentTransactionsTable').innerHTML = '<p class="text-[#92c9a4] p-4">Chưa có giao dịch nào</p>';
+                return;
+            }
+
+            const tableHtml = `
+                <thead>
+                    <tr class="bg-secondary-dark/50 border-b border-secondary-dark">
+                        <th class="p-4 text-[#92c9a4] text-xs font-bold uppercase tracking-wider">Mô tả</th>
+                        <th class="p-4 text-[#92c9a4] text-xs font-bold uppercase tracking-wider">Danh mục</th>
+                        <th class="p-4 text-[#92c9a4] text-xs font-bold uppercase tracking-wider">Ngày</th>
+                        <th class="p-4 text-[#92c9a4] text-xs font-bold uppercase tracking-wider text-right">Số tiền</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-secondary-dark">
+                    ${transactions.map(t => `
+                        <tr class="hover:bg-secondary-dark/30 transition-colors">
+                            <td class="p-4">
+                                <p class="text-white text-sm font-bold">${t[3] || 'N/A'}</p>
+                            </td>
+                            <td class="p-4">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-secondary-dark text-[#92c9a4]">
+                                    ${t[2] || 'N/A'}
+                                </span>
+                            </td>
+                            <td class="p-4 text-white text-sm">${formatDate(t[1])}</td>
+                            <td class="p-4 text-right">
+                                <span class="text-sm font-bold ${t[4] === 'Income' ? 'text-primary' : 'text-white'}">
+                                    ${t[4] === 'Income' ? '+' : '-'} ${formatCurrency(t[5])}
+                                </span>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            `;
+            document.getElementById('recentTransactionsTable').innerHTML = tableHtml;
+        }
+
+        function renderGoalsStats(goals) {
+            const activeGoals = goals.filter(g => g[5] === 'Active').length;
+            const avgProgress = goals.reduce((sum, g) => sum + (parseInt(g[3]) || 0), 0) / (goals.length || 1);
+            const upcomingDeadlines = goals.filter(g => {
+                const deadline = new Date(g[4]);
+                const daysUntil = Math.ceil((deadline - new Date()) / (1000 * 60 * 60 * 24));
+                return daysUntil <= 7 && daysUntil > 0;
+            }).length;
+
+            const statsHtml = `
+                <div class="flex flex-col gap-3 rounded-2xl p-6 bg-white dark:bg-secondary-dark shadow-sm border border-gray-100 dark:border-transparent">
+                    <div class="flex justify-between items-start">
+                        <div class="p-2 rounded-lg bg-blue-50 dark:bg-[#1c3324] text-blue-600 dark:text-[#92c9a4]">
+                            <span class="material-symbols-outlined">flag</span>
+                        </div>
+                        <span class="px-2 py-1 rounded-full bg-emerald-50 dark:bg-[#112217] text-emerald-600 dark:text-primary text-xs font-bold">+2 mới</span>
+                    </div>
+                    <div>
+                        <p class="text-gray-500 dark:text-[#92c9a4] text-sm font-medium">Mục tiêu đang chạy</p>
+                        <p class="text-3xl font-bold dark:text-white mt-1">${activeGoals}</p>
+                    </div>
+                </div>
+                <div class="flex flex-col gap-3 rounded-2xl p-6 bg-white dark:bg-secondary-dark shadow-sm border border-gray-100 dark:border-transparent">
+                    <div class="flex justify-between items-start">
+                        <div class="p-2 rounded-lg bg-purple-50 dark:bg-[#1c3324] text-purple-600 dark:text-purple-300">
+                            <span class="material-symbols-outlined">trending_up</span>
+                        </div>
+                        <span class="px-2 py-1 rounded-full bg-emerald-50 dark:bg-[#112217] text-emerald-600 dark:text-primary text-xs font-bold">+5%</span>
+                    </div>
+                    <div>
+                        <p class="text-gray-500 dark:text-[#92c9a4] text-sm font-medium">Tiến độ tổng thể</p>
+                        <p class="text-3xl font-bold dark:text-white mt-1">${Math.round(avgProgress)}%</p>
+                    </div>
+                </div>
+                <div class="flex flex-col gap-3 rounded-2xl p-6 bg-white dark:bg-secondary-dark shadow-sm border border-gray-100 dark:border-transparent">
+                    <div class="flex justify-between items-start">
+                        <div class="p-2 rounded-lg bg-orange-50 dark:bg-[#1c3324] text-orange-600 dark:text-orange-300">
+                            <span class="material-symbols-outlined">timer</span>
+                        </div>
+                        <span class="px-2 py-1 rounded-full bg-orange-50 dark:bg-[#112217] text-orange-600 dark:text-orange-300 text-xs font-bold">3 ngày</span>
+                    </div>
+                    <div>
+                        <p class="text-gray-500 dark:text-[#92c9a4] text-sm font-medium">Hạn chót sắp tới</p>
+                        <p class="text-3xl font-bold dark:text-white mt-1">${upcomingDeadlines}</p>
+                    </div>
+                </div>
+            `;
+            document.getElementById('goalsStats').innerHTML = statsHtml;
+        }
+
+        function renderGoalsList(goals) {
+            const goalsHtml = goals.map(g => `
+                <div class="group flex flex-col sm:flex-row sm:items-center justify-between p-5 bg-white dark:bg-[#1c3324] rounded-2xl border border-gray-100 dark:border-transparent hover:border-primary/30 transition-all shadow-sm">
+                    <div class="flex gap-4 items-center mb-4 sm:mb-0">
+                        <div class="h-12 w-12 rounded-xl bg-blue-100 dark:bg-secondary-dark flex items-center justify-center text-blue-600 dark:text-white shrink-0">
+                            <span class="material-symbols-outlined">school</span>
+                        </div>
+                        <div>
+                            <h4 class="text-base font-bold dark:text-white">${g[1]}</h4>
+                            <p class="text-xs text-gray-500 dark:text-[#92c9a4] mt-1">${g[2]}</p>
+                        </div>
+                    </div>
+                    <div class="flex flex-col sm:items-end gap-2 min-w-[180px]">
+                        <div class="flex justify-between w-full sm:justify-end gap-3 text-sm">
+                            <span class="font-bold text-primary">${g[3]}%</span>
+                            <span class="text-gray-400 text-xs self-center">${formatDate(g[4])}</span>
+                        </div>
+                        <div class="h-2 w-full bg-gray-100 dark:bg-[#112217] rounded-full overflow-hidden">
+                            <div class="h-full bg-primary rounded-full" style="width: ${g[3]}%"></div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            document.getElementById('goalsList').innerHTML = goalsHtml;
+        }
+
+        function renderHabitsStats(habits, logs) {
+            const totalHabits = habits.length;
+            const today = new Date().toISOString().split('T')[0];
+            const todayLogs = logs.filter(l => l[2] === today && l[3] === 'TRUE');
+            const completedToday = todayLogs.length;
+            const completionRate = totalHabits > 0 ? Math.round((completedToday / totalHabits) * 100) : 0;
+
+            const statsHtml = `
+                <div class="flex flex-col gap-3 rounded-2xl p-6 bg-[#1A2C20] border border-white/5">
+                    <div class="flex items-center justify-between">
+                        <p class="text-[#92c9a4] text-sm font-medium">Tổng thói quen</p>
+                        <span class="material-symbols-outlined text-[#92c9a4]">list_alt</span>
+                    </div>
+                    <div class="flex items-baseline gap-2">
+                        <p class="text-white text-3xl font-bold">${totalHabits}</p>
+                        <span class="text-primary text-sm font-medium bg-primary/10 px-2 py-0.5 rounded">+1 mới</span>
+                    </div>
+                </div>
+                <div class="flex flex-col gap-3 rounded-2xl p-6 bg-[#1A2C20] border border-white/5">
+                    <div class="flex items-center justify-between">
+                        <p class="text-[#92c9a4] text-sm font-medium">Đã hoàn thành</p>
+                        <span class="material-symbols-outlined text-primary">check_circle</span>
+                    </div>
+                    <div class="flex items-baseline gap-2">
+                        <p class="text-white text-3xl font-bold">${completedToday}</p>
+                        <span class="text-primary text-sm font-medium">+10% so với hôm qua</span>
+                    </div>
+                </div>
+                <div class="flex flex-col gap-3 rounded-2xl p-6 bg-[#1A2C20] border border-white/5">
+                    <div class="flex items-center justify-between">
+                        <p class="text-[#92c9a4] text-sm font-medium">Tỷ lệ hoàn thành</p>
+                        <span class="material-symbols-outlined text-[#92c9a4]">trending_up</span>
+                    </div>
+                    <div class="flex items-baseline gap-2">
+                        <p class="text-white text-3xl font-bold">${completionRate}%</p>
+                        <span class="text-primary text-sm font-medium">+12%</span>
+                    </div>
+                </div>
+            `;
+            document.getElementById('habitsStats').innerHTML = statsHtml;
+        }
+
+        function renderHabitsList(habits) {
+            const habitsHtml = habits.map(h => `
+                <div class="group flex items-center p-4 rounded-xl bg-[#1A2C20] border border-white/5 hover:bg-[#233929] transition-all cursor-pointer">
+                    <div class="flex items-center gap-4 flex-1">
+                        <div class="relative flex items-center justify-center">
+                            <input class="peer appearance-none w-6 h-6 border-2 border-[#92c9a4] rounded-md checked:bg-primary checked:border-primary transition-all cursor-pointer" type="checkbox" onchange="toggleHabit('${h[0]}')"/>
+                            <span class="material-symbols-outlined absolute text-background-dark text-[18px] opacity-0 peer-checked:opacity-100 pointer-events-none transition-opacity">check</span>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="text-white font-semibold text-base group-hover:text-primary transition-colors">${h[1]}</span>
+                            <span class="text-[#92c9a4] text-xs flex items-center gap-1">
+                                <span class="material-symbols-outlined text-[14px]">timer</span> ${h[4]}
+                                <span class="w-1 h-1 rounded-full bg-[#92c9a4] mx-1"></span>
+                                ${h[3]}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            document.getElementById('habitsList').innerHTML = habitsHtml;
+        }
+
+        // Chart rendering functions
+        function renderIncomeExpenseChart(transactions) {
+            const ctx = document.getElementById('incomeExpenseChart');
+            if (!ctx) return;
+
+            // Group by month
+            const monthlyData = {};
+            transactions.forEach(t => {
+                const date = new Date(t[1]);
+                const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                if (!monthlyData[monthKey]) {
+                    monthlyData[monthKey] = { income: 0, expense: 0 };
+                }
+                const amount = parseFloat(t[5]) || 0;
+                if (t[4] === 'Income') {
+                    monthlyData[monthKey].income += amount;
+                } else {
+                    monthlyData[monthKey].expense += amount;
+                }
+            });
+
+            const sortedMonths = Object.keys(monthlyData).sort();
+            const labels = sortedMonths.map(m => {
+                const [year, month] = m.split('-');
+                return `Tháng ${month}/${year}`;
+            });
+            const incomeData = sortedMonths.map(m => monthlyData[m].income);
+            const expenseData = sortedMonths.map(m => monthlyData[m].expense);
+
+            // Destroy existing chart
+            if (incomeExpenseChartObj) {
+                incomeExpenseChartObj.destroy();
+            }
+
+            incomeExpenseChartObj = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Thu nhập',
+                        data: incomeData,
+                        backgroundColor: 'rgba(19, 236, 91, 0.8)',
+                        borderColor: '#13ec5b',
+                        borderWidth: 1
+                    }, {
+                        label: 'Chi tiêu',
+                        data: expenseData,
+                        backgroundColor: 'rgba(239, 68, 68, 0.8)',
+                        borderColor: '#ef4444',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: '#92c9a4'
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                color: '#92c9a4',
+                                callback: function (value) {
+                                    return new Intl.NumberFormat('vi-VN').format(value) + ' đ';
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(146, 201, 164, 0.1)'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                color: '#92c9a4'
+                            },
+                            grid: {
+                                color: 'rgba(146, 201, 164, 0.1)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderExpensePieChart(transactions) {
+            const ctx = document.getElementById('expensePieChart');
+            if (!ctx) return;
+
+            // Group expenses by category
+            const categoryData = {};
+            transactions.forEach(t => {
+                if (t[4] !== 'Expense') return;
+                const category = t[2] || 'Khác';
+                const amount = parseFloat(t[5]) || 0;
+                categoryData[category] = (categoryData[category] || 0) + amount;
+            });
+
+            const categories = Object.keys(categoryData);
+            const amounts = Object.values(categoryData);
+
+            // Generate colors
+            const colors = [
+                '#13ec5b', '#3b82f6', '#f59e0b', '#8b5cf6',
+                '#ef4444', '#10b981', '#f97316', '#06b6d4'
+            ];
+
+            // Destroy existing chart
+            if (expensePieChartObj) {
+                expensePieChartObj.destroy();
+            }
+
+            expensePieChartObj = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: categories,
+                    datasets: [{
+                        data: amounts,
+                        backgroundColor: colors.slice(0, categories.length),
+                        borderColor: '#1c2e22',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: '#92c9a4',
+                                padding: 10,
+                                font: {
+                                    size: 11
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    const label = context.label || '';
+                                    const value = context.parsed || 0;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((value / total) * 100).toFixed(1);
+                                    return `${label}: ${formatCurrency(value)} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Filter and Export functions
+        function applyDateFilter() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+
+            if (!startDate || !endDate) {
+                alert('Vui lòng chọn khoảng thời gian');
+                return;
+            }
+
+            filteredTransactions = allTransactions.filter(t => {
+                const transDate = t[1];
+                return transDate >= startDate && transDate <= endDate;
+            });
+
+            renderFinanceStats(filteredTransactions);
+            renderRecentTransactions(filteredTransactions.slice(0, 5));
+            renderIncomeExpenseChart(filteredTransactions);
+            renderExpensePieChart(filteredTransactions);
+        }
+
+        function exportToCSV() {
+            if (filteredTransactions.length === 0) {
+                alert('Không có dữ liệu để xuất');
+                return;
+            }
+
+            // CSV header
+            let csv = 'ID,Ngày,Danh mục,Mô tả,Loại,Số tiền,Ví,Trạng thái\n';
+
+            // CSV data
+            filteredTransactions.forEach(t => {
+                const row = t.map(cell => {
+                    // Escape commas and quotes
+                    const value = String(cell || '');
+                    return value.includes(',') || value.includes('"')
+                        ? `"${value.replace(/"/g, '""')}"`
+                        : value;
+                });
+                csv += row.join(',') + '\n';
+            });
+
+            // Download
+            const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            const fileName = `giao-dich-${new Date().toISOString().split('T')[0]}.csv`;
+
+            link.setAttribute('href', url);
+            link.setAttribute('download', fileName);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Utility Functions
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('vi-VN', {
+                style: 'currency',
+                currency: 'VND'
+            }).format(amount || 0);
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return 'N/A';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('vi-VN');
+        }
+
+        function calculateFinanceStats(transactions) {
+            let totalIncome = 0;
+            let totalExpense = 0;
+
+            transactions.forEach(t => {
+                const amount = parseFloat(t[5]) || 0;
+                if (t[4] === 'Income') {
+                    totalIncome += amount;
+                } else {
+                    totalExpense += amount;
+                }
+            });
+
+            return {
+                totalIncome,
+                totalExpense,
+                savings: totalIncome - totalExpense,
+                debt: 0,
+                incomeGrowth: 10,
+                expenseGrowth: 5
+            };
+        }
+
+        function showLoading(show) {
+            const overlay = document.getElementById('loadingOverlay');
+            if (show) {
+                overlay.classList.add('active');
+            } else {
+                overlay.classList.remove('active');
+            }
+        }
+
+        // View Navigation
+        function showView(viewName) {
+            // Hide all views
+            document.querySelectorAll('.view-section').forEach(v => v.classList.remove('active'));
+
+            // Show selected view
+            const viewMap = {
+                'finance': 'financeView',
+                'goals': 'goalsView',
+                'habits': 'habitsView',
+                'transactions': 'transactionsView',
+                'analytics': 'analyticsView'
+            };
+
+            const viewId = viewMap[viewName];
+            if (viewId) {
+                document.getElementById(viewId).classList.add('active');
+            }
+
+            // Update desktop nav links
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('bg-secondary-dark');
+                const linkHref = link.getAttribute('href').substring(1);
+                if (linkHref === viewName) {
+                    link.classList.add('bg-secondary-dark');
+                }
+            });
+
+            // Update mobile nav links
+            document.querySelectorAll('.mobile-nav-link').forEach(link => {
+                link.classList.remove('active');
+                const linkHref = link.getAttribute('href').substring(1);
+                if (linkHref === viewName) {
+                    link.classList.add('active');
+                }
+            });
+        }
+
+        // Hash-based routing
+        window.addEventListener('hashchange', () => {
+            const hash = window.location.hash.substring(1) || 'finance';
+            showView(hash);
+        });
+
+        // Initialize on load
+        window.addEventListener('load', () => {
+            gapiLoaded();
+            gisLoaded();
+
+            const hash = window.location.hash.substring(1) || 'finance';
+            showView(hash);
+        });
+
+        // Habit toggle
+        async function toggleHabit(habitId) {
+            const today = new Date().toISOString().split('T')[0];
+            await appendSheet('HabitLogs!A:D', [[
+                Date.now(),
+                habitId,
+                today,
+                'TRUE'
+            ]]);
+            await loadHabitsData();
+        }
+
+        // Modal functions
+        function showAddTransactionModal() {
+            document.getElementById('transactionModal').classList.remove('hidden');
+        }
+
+        function closeTransactionModal() {
+            document.getElementById('transactionModal').classList.add('hidden');
+            document.getElementById('transactionType').value = 'Expense';
+            document.getElementById('transactionAmount').value = '';
+            document.getElementById('transactionCategory').value = '';
+            document.getElementById('transactionDescription').value = '';
+            document.getElementById('transactionWallet').value = 'Tiền mặt';
+        }
+
+        async function handleAddTransaction(event) {
+            event.preventDefault();
+            showLoading(true);
+
+            const type = document.getElementById('transactionType').value;
+            const amount = document.getElementById('transactionAmount').value;
+            const category = document.getElementById('transactionCategory').value;
+            const description = document.getElementById('transactionDescription').value;
+            const wallet = document.getElementById('transactionWallet').value;
+            const today = new Date().toISOString().split('T')[0];
+            const id = Date.now();
+
+            const success = await appendSheet('Transactions!A:H', [[
+                id,
+                today,
+                category,
+                description,
+                type,
+                amount,
+                wallet,
+                'Completed'
+            ]]);
+
+            if (success) {
+                closeTransactionModal();
+                await loadFinanceData();
+                alert('Đã thêm giao dịch thành công!');
+            } else {
+                alert('Lỗi khi thêm giao dịch. Vui lòng thử lại.');
+            }
+
+            showLoading(false);
+        }
+
+        function showAddGoalModal() {
+            document.getElementById('goalModal').classList.remove('hidden');
+        }
+
+        function closeGoalModal() {
+            document.getElementById('goalModal').classList.add('hidden');
+            document.getElementById('goalTitle').value = '';
+            document.getElementById('goalDescription').value = '';
+            document.getElementById('goalCategory').value = '';
+            document.getElementById('goalDeadline').value = '';
+        }
+
+        async function handleAddGoal(event) {
+            event.preventDefault();
+            showLoading(true);
+
+            const title = document.getElementById('goalTitle').value;
+            const description = document.getElementById('goalDescription').value;
+            const category = document.getElementById('goalCategory').value;
+            const deadline = document.getElementById('goalDeadline').value;
+            const id = Date.now();
+
+            const success = await appendSheet('Goals!A:H', [[
+                id,
+                title,
+                description,
+                0, // Progress starts at 0%
+                deadline,
+                'Active',
+                category,
+                '' // Milestones empty initially
+            ]]);
+
+            if (success) {
+                closeGoalModal();
+                await loadGoalsData();
+                alert('Đã thêm mục tiêu thành công!');
+            } else {
+                alert('Lỗi khi thêm mục tiêu. Vui lòng thử lại.');
+            }
+
+            showLoading(false);
+        }
+
+        function showAddHabitModal() {
+            document.getElementById('habitModal').classList.remove('hidden');
+        }
+
+        function closeHabitModal() {
+            document.getElementById('habitModal').classList.add('hidden');
+            document.getElementById('habitTitle').value = '';
+            document.getElementById('habitDescription').value = '';
+            document.getElementById('habitCategory').value = '';
+            document.getElementById('habitSchedule').value = '';
+        }
+
+        async function handleAddHabit(event) {
+            event.preventDefault();
+            showLoading(true);
+
+            const title = document.getElementById('habitTitle').value;
+            const description = document.getElementById('habitDescription').value;
+            const category = document.getElementById('habitCategory').value;
+            const schedule = document.getElementById('habitSchedule').value;
+            const id = Date.now();
+
+            const success = await appendSheet('Habits!A:H', [[
+                id,
+                title,
+                description,
+                category,
+                schedule,
+                0, // Streak starts at 0
+                0, // Completion rate starts at 0
+                'check_circle' // Default icon
+            ]]);
+
+            if (success) {
+                closeHabitModal();
+                await loadHabitsData();
+                alert('Đã thêm thói quen thành công!');
+            } else {
+                alert('Lỗi khi thêm thói quen. Vui lòng thử lại.');
+            }
+
+            showLoading(false);
+        }
+
+        // Delete functions
+        async function deleteSheetRow(sheetName, rowIndex) {
+            try {
+                await gapi.client.sheets.spreadsheets.batchUpdate({
+                    spreadsheetId: CONFIG.SPREADSHEET_ID,
+                    resource: {
+                        requests: [{
+                            deleteDimension: {
+                                range: {
+                                    sheetId: await getSheetId(sheetName),
+                                    dimension: 'ROWS',
+                                    startIndex: rowIndex,
+                                    endIndex: rowIndex + 1
+                                }
+                            }
+                        }]
+                    }
+                });
+                return true;
+            } catch (err) {
+                console.error('Error deleting row:', err);
+                return false;
+            }
+        }
+
+        async function getSheetId(sheetName) {
+            // Map of sheet names to their IDs (you need to get these from your spreadsheet)
+            // This is a simplified version - in production you'd fetch this dynamically
+            const sheetMap = {
+                'Transactions': 0,
+                'Goals': 1,
+                'Habits': 2,
+                'HabitLogs': 3,
+                'Categories': 4
+            };
+            return sheetMap[sheetName] || 0;
+        }
+    </script>
+</body>
+
+</html>
